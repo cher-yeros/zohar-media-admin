@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -22,6 +24,10 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Youtube, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { addMediaFormSchema, AddMediaFormData } from "@/lib/schemas/validation";
+import { CREATE_MEDIA_ITEM } from "@/lib/graphql/mutations";
+import { useMutation } from "@apollo/client";
+import { uploadFile } from "@/lib/api/file-upload";
 
 interface AddMediaProps {
   onMediaAdded?: (media: any) => void;
@@ -29,19 +35,30 @@ interface AddMediaProps {
 
 export function AddMedia({ onMediaAdded }: AddMediaProps) {
   const [open, setOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [tags, setTags] = useState<string[]>([]);
+  const [currentTag, setCurrentTag] = useState("");
   const { toast } = useToast();
 
-  const [formData, setFormData] = useState({
-    title: "",
-    youtubeUrl: "",
-    description: "",
-    category: "",
-    tags: [] as string[],
-    currentTag: "",
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    reset,
+    setValue,
+    watch,
+  } = useForm<AddMediaFormData>({
+    resolver: zodResolver(addMediaFormSchema),
+    defaultValues: {
+      title: "",
+      youtubeUrl: "",
+      description: "",
+      category: "",
+      tags: [],
+      currentTag: "",
+    },
   });
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [createMediaItem] = useMutation(CREATE_MEDIA_ITEM);
 
   const categories = [
     "Wedding Photography",
@@ -61,45 +78,19 @@ export function AddMedia({ onMediaAdded }: AddMediaProps) {
     return match && match[2].length === 11 ? match[2] : null;
   };
 
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.title.trim()) {
-      newErrors.title = "Title is required";
-    }
-
-    if (!formData.youtubeUrl.trim()) {
-      newErrors.youtubeUrl = "YouTube URL is required";
-    } else if (!extractYouTubeId(formData.youtubeUrl)) {
-      newErrors.youtubeUrl = "Please enter a valid YouTube URL";
-    }
-
-    if (!formData.category) {
-      newErrors.category = "Category is required";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
   const handleAddTag = () => {
-    if (
-      formData.currentTag.trim() &&
-      !formData.tags.includes(formData.currentTag.trim())
-    ) {
-      setFormData((prev) => ({
-        ...prev,
-        tags: [...prev.tags, prev.currentTag.trim()],
-        currentTag: "",
-      }));
+    if (currentTag.trim() && !tags.includes(currentTag.trim())) {
+      const newTags = [...tags, currentTag.trim()];
+      setTags(newTags);
+      setValue("tags", newTags);
+      setCurrentTag("");
     }
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      tags: prev.tags.filter((tag) => tag !== tagToRemove),
-    }));
+    const newTags = tags.filter((tag) => tag !== tagToRemove);
+    setTags(newTags);
+    setValue("tags", newTags);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -109,65 +100,66 @@ export function AddMedia({ onMediaAdded }: AddMediaProps) {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
-
-    setIsLoading(true);
-
+  const onSubmit = async (data: AddMediaFormData) => {
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const youtubeId = extractYouTubeId(data.youtubeUrl);
 
-      const youtubeId = extractYouTubeId(formData.youtubeUrl);
-      const newMedia = {
-        id: Date.now().toString(),
-        title: formData.title,
-        type: "video" as const,
-        url: formData.youtubeUrl,
-        thumbnail: `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`,
-        tags: formData.tags,
-        uploadDate: new Date(),
-        size: "N/A",
-        duration: "Unknown",
-        description: formData.description,
-        category: formData.category,
-        youtubeId,
-      };
+      if (!youtubeId) {
+        toast({
+          title: "Error",
+          description: "Please enter a valid YouTube URL",
+          variant: "destructive",
+        });
+        return;
+      }
 
-      onMediaAdded?.(newMedia);
-
-      toast({
-        title: "Media Added Successfully",
-        description: `"${formData.title}" has been added to your media library.`,
+      const result = await createMediaItem({
+        variables: {
+          input: {
+            title: data.title,
+            type: "VIDEO",
+            url: data.youtubeUrl,
+            thumbnail_url: `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`,
+            tags: tags.map((tag) => ({ tag_name: tag })),
+          },
+        },
       });
 
-      // Reset form
-      setFormData({
-        title: "",
-        youtubeUrl: "",
-        description: "",
-        category: "",
-        tags: [],
-        currentTag: "",
-      });
-      setErrors({});
-      setOpen(false);
+      if (result.data?.createMediaItem?.success) {
+        const newMedia = result.data.createMediaItem.mediaItem;
+
+        onMediaAdded?.(newMedia);
+
+        toast({
+          title: "Media Added Successfully",
+          description: `"${data.title}" has been added to your media library.`,
+        });
+
+        // Reset form
+        reset();
+        setTags([]);
+        setCurrentTag("");
+        setOpen(false);
+      } else {
+        throw new Error(
+          result.data?.createMediaItem?.message || "Failed to create media item"
+        );
+      }
     } catch (error) {
+      console.error("Error creating media item:", error);
       toast({
         title: "Error",
-        description: "Failed to add media. Please try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to add media. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const youtubeId = extractYouTubeId(formData.youtubeUrl);
+  const youtubeUrl = watch("youtubeUrl");
+  const youtubeId = extractYouTubeId(youtubeUrl);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -188,32 +180,26 @@ export function AddMedia({ onMediaAdded }: AddMediaProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="title">Title *</Label>
               <Input
                 id="title"
                 placeholder="Enter media title"
-                value={formData.title}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, title: e.target.value }))
-                }
+                {...register("title")}
                 className={errors.title ? "border-destructive" : ""}
               />
               {errors.title && (
-                <p className="text-sm text-destructive">{errors.title}</p>
+                <p className="text-sm text-destructive">
+                  {errors.title.message}
+                </p>
               )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="category">Category *</Label>
-              <Select
-                value={formData.category}
-                onValueChange={(value) =>
-                  setFormData((prev) => ({ ...prev, category: value }))
-                }
-              >
+              <Select onValueChange={(value) => setValue("category", value)}>
                 <SelectTrigger
                   className={errors.category ? "border-destructive" : ""}
                 >
@@ -228,7 +214,9 @@ export function AddMedia({ onMediaAdded }: AddMediaProps) {
                 </SelectContent>
               </Select>
               {errors.category && (
-                <p className="text-sm text-destructive">{errors.category}</p>
+                <p className="text-sm text-destructive">
+                  {errors.category.message}
+                </p>
               )}
             </div>
           </div>
@@ -238,14 +226,13 @@ export function AddMedia({ onMediaAdded }: AddMediaProps) {
             <Input
               id="youtubeUrl"
               placeholder="https://www.youtube.com/watch?v=..."
-              value={formData.youtubeUrl}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, youtubeUrl: e.target.value }))
-              }
+              {...register("youtubeUrl")}
               className={errors.youtubeUrl ? "border-destructive" : ""}
             />
             {errors.youtubeUrl && (
-              <p className="text-sm text-destructive">{errors.youtubeUrl}</p>
+              <p className="text-sm text-destructive">
+                {errors.youtubeUrl.message}
+              </p>
             )}
           </div>
 
@@ -267,13 +254,7 @@ export function AddMedia({ onMediaAdded }: AddMediaProps) {
             <Textarea
               id="description"
               placeholder="Enter a description for this media"
-              value={formData.description}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  description: e.target.value,
-                }))
-              }
+              {...register("description")}
               rows={3}
             />
           </div>
@@ -284,22 +265,17 @@ export function AddMedia({ onMediaAdded }: AddMediaProps) {
               <Input
                 id="tags"
                 placeholder="Add a tag and press Enter"
-                value={formData.currentTag}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    currentTag: e.target.value,
-                  }))
-                }
+                value={currentTag}
+                onChange={(e) => setCurrentTag(e.target.value)}
                 onKeyPress={handleKeyPress}
               />
               <Button type="button" onClick={handleAddTag} variant="outline">
                 Add
               </Button>
             </div>
-            {formData.tags.length > 0 && (
+            {tags.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2">
-                {formData.tags.map((tag) => (
+                {tags.map((tag) => (
                   <Badge
                     key={tag}
                     variant="secondary"
@@ -321,12 +297,12 @@ export function AddMedia({ onMediaAdded }: AddMediaProps) {
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
-              disabled={isLoading}
+              disabled={isSubmitting}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Adding..." : "Add Media"}
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Adding..." : "Add Media"}
             </Button>
           </DialogFooter>
         </form>

@@ -25,6 +25,7 @@ import {
   TrendingUp,
   Users,
   Eye,
+  CheckCircle,
 } from "lucide-react";
 import {
   sampleInquiries,
@@ -72,31 +73,31 @@ export function Dashboard() {
   }
   const stats = [
     {
-      title: "Total Inquiries",
-      value: sampleAnalytics.inquiries.total,
-      change: `+${sampleAnalytics.inquiries.trend}%`,
-      icon: MessageSquare,
-      description: "This month",
+      title: "Completed Projects",
+      value: 230,
+      change: "+15.2%",
+      icon: CheckCircle,
+      description: "Successfully delivered",
     },
     {
-      title: "Media Items",
-      value: 156,
+      title: "Happy Clients",
+      value: "1,068",
+      change: "+8.7%",
+      icon: Users,
+      description: "Satisfied customers",
+    },
+    {
+      title: "Perspective Clients",
+      value: 230,
       change: "+12.3%",
-      icon: Image,
-      description: "Total uploaded",
-    },
-    {
-      title: "Testimonials",
-      value: 24,
-      change: "+5.2%",
-      icon: Star,
-      description: "Approved",
+      icon: Eye,
+      description: "Potential customers",
     },
     {
       title: "Website Visitors",
       value: sampleAnalytics.visitors.thisMonth.toLocaleString(),
       change: `+${sampleAnalytics.visitors.trend}%`,
-      icon: Users,
+      icon: TrendingUp,
       description: "This month",
     },
   ];

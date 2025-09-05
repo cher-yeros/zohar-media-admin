@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,6 +17,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Star, Upload, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import {
+  addTestimonyFormSchema,
+  AddTestimonyFormData,
+} from "@/lib/schemas/validation";
+import { CREATE_TESTIMONIAL } from "@/lib/graphql/mutations";
+import { useMutation } from "@apollo/client";
+import { uploadFile } from "@/lib/api/file-upload";
 
 interface AddTestimonyProps {
   onTestimonyAdded?: (testimony: any) => void;
@@ -22,139 +31,129 @@ interface AddTestimonyProps {
 
 export function AddTestimony({ onTestimonyAdded }: AddTestimonyProps) {
   const [open, setOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState("");
   const { toast } = useToast();
 
-  const [formData, setFormData] = useState({
-    name: "",
-    company: "",
-    email: "",
-    message: "",
-    rating: 5,
-    avatar: "",
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    reset,
+    setValue,
+    watch,
+  } = useForm<AddTestimonyFormData>({
+    resolver: zodResolver(addTestimonyFormSchema),
+    defaultValues: {
+      name: "",
+      company: "",
+      email: "",
+      message: "",
+      rating: 5,
+      avatar: "",
+    },
   });
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [createTestimonial] = useMutation(CREATE_TESTIMONIAL);
 
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.name.trim()) {
-      newErrors.name = "Name is required";
-    }
-
-    if (!formData.company.trim()) {
-      newErrors.company = "Company is required";
-    }
-
-    if (!formData.email.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = "Please enter a valid email address";
-    }
-
-    if (!formData.message.trim()) {
-      newErrors.message = "Message is required";
-    } else if (formData.message.trim().length < 20) {
-      newErrors.message = "Message should be at least 20 characters long";
-    }
-
-    if (formData.rating < 1 || formData.rating > 5) {
-      newErrors.rating = "Rating must be between 1 and 5";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
-
-    setIsLoading(true);
-
+  const onSubmit = async (data: AddTestimonyFormData) => {
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      const newTestimony = {
-        id: Date.now().toString(),
-        name: formData.name,
-        company: formData.company,
-        email: formData.email,
-        message: formData.message,
-        rating: formData.rating,
-        date: new Date(),
-        status: "pending" as const,
-        featured: false,
-        avatar:
-          formData.avatar ||
-          `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=random`,
-      };
-
-      onTestimonyAdded?.(newTestimony);
-
-      toast({
-        title: "Testimonial Added Successfully",
-        description: `Testimonial from ${formData.name} has been added and is pending approval.`,
+      const result = await createTestimonial({
+        variables: {
+          input: {
+            name: data.name,
+            company: data.company,
+            message: data.message,
+            rating: data.rating,
+            testimonial_date: new Date().toISOString(),
+            status: "PENDING",
+            featured: false,
+            avatar_url:
+              avatarUrl ||
+              `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=random`,
+          },
+        },
       });
 
-      // Reset form
-      setFormData({
-        name: "",
-        company: "",
-        email: "",
-        message: "",
-        rating: 5,
-        avatar: "",
-      });
-      setErrors({});
-      setOpen(false);
+      if (result.data?.createTestimonial?.success) {
+        const newTestimony = result.data.createTestimonial.testimonial;
+
+        onTestimonyAdded?.(newTestimony);
+
+        toast({
+          title: "Testimonial Added Successfully",
+          description: `Testimonial from ${data.name} has been added and is pending approval.`,
+        });
+
+        // Reset form
+        reset();
+        setAvatarUrl("");
+        setOpen(false);
+      } else {
+        throw new Error(
+          result.data?.createTestimonial?.message ||
+            "Failed to create testimonial"
+        );
+      }
     } catch (error) {
+      console.error("Error creating testimonial:", error);
       toast({
         title: "Error",
-        description: "Failed to add testimonial. Please try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to add testimonial. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const renderStars = (rating: number, interactive: boolean = false) => {
+  const rating = watch("rating");
+
+  const renderStars = (currentRating: number, interactive: boolean = false) => {
     return Array.from({ length: 5 }, (_, i) => (
       <Star
         key={i}
         className={`h-5 w-5 ${
-          i < rating
+          i < currentRating
             ? "fill-yellow-400 text-yellow-400"
             : "text-muted-foreground"
         } ${interactive ? "cursor-pointer hover:text-yellow-400" : ""}`}
-        onClick={
-          interactive
-            ? () => setFormData((prev) => ({ ...prev, rating: i + 1 }))
-            : undefined
-        }
+        onClick={interactive ? () => setValue("rating", i + 1) : undefined}
       />
     ));
   };
 
-  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // In a real app, you would upload the file to a server
-      // For now, we'll just create a temporary URL
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setFormData((prev) => ({
-          ...prev,
-          avatar: event.target?.result as string,
-        }));
-      };
-      reader.readAsDataURL(file);
+      try {
+        // Upload file to server
+        const uploadResult = await uploadFile(file, { folder: "avatars" });
+
+        if (uploadResult.success && uploadResult.fileName) {
+          setAvatarUrl(uploadResult.fileName);
+          setValue("avatar", uploadResult.fileName);
+        } else {
+          // Fallback to local preview
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const url = event.target?.result as string;
+            setAvatarUrl(url);
+            setValue("avatar", url);
+          };
+          reader.readAsDataURL(file);
+        }
+      } catch (error) {
+        console.error("Error uploading avatar:", error);
+        // Fallback to local preview
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const url = event.target?.result as string;
+          setAvatarUrl(url);
+          setValue("avatar", url);
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -177,7 +176,7 @@ export function AddTestimony({ onTestimonyAdded }: AddTestimonyProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* Customer Information */}
           <Card>
             <CardHeader>
@@ -190,14 +189,13 @@ export function AddTestimony({ onTestimonyAdded }: AddTestimonyProps) {
                   <Input
                     id="name"
                     placeholder="Enter customer name"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, name: e.target.value }))
-                    }
+                    {...register("name")}
                     className={errors.name ? "border-destructive" : ""}
                   />
                   {errors.name && (
-                    <p className="text-sm text-destructive">{errors.name}</p>
+                    <p className="text-sm text-destructive">
+                      {errors.name.message}
+                    </p>
                   )}
                 </div>
 
@@ -206,17 +204,13 @@ export function AddTestimony({ onTestimonyAdded }: AddTestimonyProps) {
                   <Input
                     id="company"
                     placeholder="Enter company name"
-                    value={formData.company}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        company: e.target.value,
-                      }))
-                    }
+                    {...register("company")}
                     className={errors.company ? "border-destructive" : ""}
                   />
                   {errors.company && (
-                    <p className="text-sm text-destructive">{errors.company}</p>
+                    <p className="text-sm text-destructive">
+                      {errors.company.message}
+                    </p>
                   )}
                 </div>
               </div>
@@ -227,14 +221,13 @@ export function AddTestimony({ onTestimonyAdded }: AddTestimonyProps) {
                   id="email"
                   type="email"
                   placeholder="Enter email address"
-                  value={formData.email}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, email: e.target.value }))
-                  }
+                  {...register("email")}
                   className={errors.email ? "border-destructive" : ""}
                 />
                 {errors.email && (
-                  <p className="text-sm text-destructive">{errors.email}</p>
+                  <p className="text-sm text-destructive">
+                    {errors.email.message}
+                  </p>
                 )}
               </div>
 
@@ -242,9 +235,9 @@ export function AddTestimony({ onTestimonyAdded }: AddTestimonyProps) {
                 <Label htmlFor="avatar">Profile Picture (Optional)</Label>
                 <div className="flex items-center space-x-4">
                   <div className="flex-shrink-0">
-                    {formData.avatar ? (
+                    {avatarUrl ? (
                       <img
-                        src={formData.avatar}
+                        src={avatarUrl}
                         alt="Avatar preview"
                         className="h-16 w-16 rounded-full object-cover"
                       />
@@ -290,14 +283,16 @@ export function AddTestimony({ onTestimonyAdded }: AddTestimonyProps) {
                 <Label htmlFor="rating">Rating *</Label>
                 <div className="flex items-center space-x-2">
                   <div className="flex space-x-1">
-                    {renderStars(formData.rating, true)}
+                    {renderStars(rating, true)}
                   </div>
                   <span className="text-sm text-muted-foreground">
-                    ({formData.rating}/5)
+                    ({rating}/5)
                   </span>
                 </div>
                 {errors.rating && (
-                  <p className="text-sm text-destructive">{errors.rating}</p>
+                  <p className="text-sm text-destructive">
+                    {errors.rating.message}
+                  </p>
                 )}
               </div>
 
@@ -306,29 +301,25 @@ export function AddTestimony({ onTestimonyAdded }: AddTestimonyProps) {
                 <Textarea
                   id="message"
                   placeholder="Enter the testimonial message..."
-                  value={formData.message}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      message: e.target.value,
-                    }))
-                  }
+                  {...register("message")}
                   rows={6}
                   className={errors.message ? "border-destructive" : ""}
                 />
                 <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>{formData.message.length} characters</span>
+                  <span>{watch("message")?.length || 0} characters</span>
                   <span>Minimum 20 characters</span>
                 </div>
                 {errors.message && (
-                  <p className="text-sm text-destructive">{errors.message}</p>
+                  <p className="text-sm text-destructive">
+                    {errors.message.message}
+                  </p>
                 )}
               </div>
             </CardContent>
           </Card>
 
           {/* Preview */}
-          {formData.name && formData.message && (
+          {watch("name") && watch("message") && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Preview</CardTitle>
@@ -336,31 +327,31 @@ export function AddTestimony({ onTestimonyAdded }: AddTestimonyProps) {
               <CardContent>
                 <div className="space-y-3">
                   <div className="flex items-center space-x-3">
-                    {formData.avatar ? (
+                    {avatarUrl ? (
                       <img
-                        src={formData.avatar}
-                        alt={formData.name}
+                        src={avatarUrl}
+                        alt={watch("name")}
                         className="h-12 w-12 rounded-full object-cover"
                       />
                     ) : (
                       <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
                         <span className="text-sm font-medium text-primary">
-                          {formData.name.charAt(0)}
+                          {watch("name")?.charAt(0)}
                         </span>
                       </div>
                     )}
                     <div>
-                      <h4 className="font-semibold text-sm">{formData.name}</h4>
+                      <h4 className="font-semibold text-sm">{watch("name")}</h4>
                       <p className="text-xs text-muted-foreground">
-                        {formData.company}
+                        {watch("company")}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-1">
-                    {renderStars(formData.rating)}
+                    {renderStars(rating)}
                   </div>
                   <p className="text-sm text-muted-foreground italic">
-                    "{formData.message}"
+                    "{watch("message")}"
                   </p>
                 </div>
               </CardContent>
@@ -372,12 +363,12 @@ export function AddTestimony({ onTestimonyAdded }: AddTestimonyProps) {
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
-              disabled={isLoading}
+              disabled={isSubmitting}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Adding..." : "Add Testimonial"}
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Adding..." : "Add Testimonial"}
             </Button>
           </DialogFooter>
         </form>

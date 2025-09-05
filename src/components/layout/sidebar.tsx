@@ -8,10 +8,26 @@ import {
   BarChart3,
   Moon,
   Sun,
+  Users,
+  FolderOpen,
+  Tag,
+  Settings,
+  User,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/components/theme-provider";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { logoutUser } from "@/redux/slices/authSlice";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const navigation = [
   {
@@ -35,15 +51,41 @@ const navigation = [
     icon: Star,
   },
   {
+    name: "Team",
+    href: "/team",
+    icon: Users,
+  },
+  {
+    name: "Portfolio",
+    href: "/portfolio",
+    icon: FolderOpen,
+  },
+  {
+    name: "Categories",
+    href: "/portfolio-categories",
+    icon: Tag,
+  },
+  {
     name: "Analytics",
     href: "/analytics",
     icon: BarChart3,
+  },
+  {
+    name: "Settings",
+    href: "/settings",
+    icon: Settings,
   },
 ];
 
 export function Sidebar() {
   const location = useLocation();
   const { theme, setTheme } = useTheme();
+  const dispatch = useAppDispatch();
+  const { user } = useAppSelector((state) => state.auth);
+
+  const handleLogout = () => {
+    dispatch(logoutUser());
+  };
 
   return (
     <div className="flex h-full w-64 flex-col bg-card border-r">
@@ -93,17 +135,79 @@ export function Sidebar() {
 
       {/* User info */}
       <div className="border-t p-4">
-        <div className="flex items-center space-x-3">
-          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-            <span className="text-sm font-medium text-primary">ZM</span>
+        {user ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="w-full justify-start p-0 h-auto"
+              >
+                <div className="flex items-center space-x-3 w-full">
+                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    {user.avatar_url ? (
+                      <img
+                        src={user.avatar_url}
+                        alt={`${user.first_name} ${user.last_name}`}
+                        className="h-8 w-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-sm font-medium text-primary">
+                        {user.first_name.charAt(0)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 text-left">
+                    <p className="text-sm font-medium truncate">
+                      {user.first_name} {user.last_name}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {user.email}
+                    </p>
+                  </div>
+                </div>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56" align="end" forceMount>
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none">
+                    {user.first_name} {user.last_name}
+                  </p>
+                  <p className="text-xs leading-none text-muted-foreground">
+                    {user.email}
+                  </p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link to="/profile" className="cursor-pointer">
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Profile</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={handleLogout}
+                className="cursor-pointer"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <div className="flex items-center space-x-3">
+            <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+              <User className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">Guest User</p>
+              <p className="text-xs text-muted-foreground truncate">
+                Not signed in
+              </p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">Admin User</p>
-            <p className="text-xs text-muted-foreground truncate">
-              admin@zoharmedia.com
-            </p>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
