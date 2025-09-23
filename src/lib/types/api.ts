@@ -14,7 +14,7 @@ export interface User {
   avatar_url?: string;
   is_active: boolean;
   last_login_at?: string;
-  created_at: string;
+  createdAt: string;
   updated_at: string;
 }
 
@@ -46,7 +46,7 @@ export interface TeamMemberSkill {
   id: string;
   team_member_id: string;
   skill_name: string;
-  created_at: string;
+  createdAt: string;
 }
 
 export interface TeamMemberSocialLink {
@@ -54,7 +54,7 @@ export interface TeamMemberSocialLink {
   team_member_id: string;
   platform: string;
   url: string;
-  created_at: string;
+  createdAt: string;
 }
 
 export interface TeamMember {
@@ -67,7 +67,7 @@ export interface TeamMember {
   bio?: string;
   join_date: string;
   status: TeamMemberStatus;
-  created_at: string;
+  createdAt: string;
   updated_at: string;
   skills: TeamMemberSkill[];
   social_links: TeamMemberSocialLink[];
@@ -110,7 +110,7 @@ export interface PortfolioCategory {
   name: string;
   description?: string;
   color: string;
-  created_at: string;
+  createdAt: string;
   updated_at: string;
 }
 
@@ -120,21 +120,21 @@ export interface PortfolioItemImage {
   image_url: string;
   alt_text?: string;
   sort_order: number;
-  created_at: string;
+  createdAt: string;
 }
 
 export interface PortfolioItemTag {
   id: string;
   portfolio_item_id: string;
   tag_name: string;
-  created_at: string;
+  createdAt: string;
 }
 
 export interface PortfolioItemTechnology {
   id: string;
   portfolio_item_id: string;
   technology_name: string;
-  created_at: string;
+  createdAt: string;
 }
 
 export interface PortfolioItemTeamMember {
@@ -142,7 +142,7 @@ export interface PortfolioItemTeamMember {
   portfolio_item_id: string;
   team_member_id: string;
   role?: string;
-  created_at: string;
+  createdAt: string;
   team_member: TeamMember;
 }
 
@@ -158,7 +158,7 @@ export interface PortfolioItem {
   featured: boolean;
   project_url?: string;
   testimonial?: string;
-  created_at: string;
+  createdAt: string;
   updated_at: string;
   category?: PortfolioCategory;
   images: PortfolioItemImage[];
@@ -223,7 +223,7 @@ export interface Inquiry {
   assigned_to?: string;
   response?: string;
   response_date?: string;
-  created_at: string;
+  createdAt: string;
   updated_at: string;
   assigned_team_member?: TeamMember;
 }
@@ -260,7 +260,7 @@ export interface Testimonial {
   featured: boolean;
   avatar_url?: string;
   portfolio_item_id?: string;
-  created_at: string;
+  createdAt: string;
   updated_at: string;
   portfolio_item?: PortfolioItem;
 }
@@ -298,7 +298,7 @@ export interface MediaItemTag {
   id: string;
   media_item_id: string;
   tag_name: string;
-  created_at: string;
+  createdAt: string;
 }
 
 export interface MediaItem {
@@ -311,7 +311,7 @@ export interface MediaItem {
   dimensions?: string;
   duration?: string;
   upload_date: string;
-  created_at: string;
+  createdAt: string;
   updated_at: string;
   tags: MediaItemTag[];
 }
@@ -339,7 +339,7 @@ export interface AnalyticsData {
   inquiries_this_month: number;
   inquiry_trend: number;
   media_total_views: number;
-  created_at: string;
+  createdAt: string;
   updated_at: string;
 }
 
@@ -352,7 +352,7 @@ export interface BusinessStatistics {
   average_project_value: number;
   is_public: boolean;
   auto_update: boolean;
-  created_at: string;
+  createdAt: string;
   updated_at: string;
 }
 
@@ -370,7 +370,7 @@ export interface SystemSettings {
   website_url?: string;
   contact_email?: string;
   theme: Theme;
-  created_at: string;
+  createdAt: string;
   updated_at: string;
 }
 
@@ -391,7 +391,7 @@ export interface ActivityLog {
   entity_id?: string;
   description?: string;
   metadata?: any;
-  created_at: string;
+  createdAt: string;
   user?: User;
 }
 

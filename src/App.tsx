@@ -65,8 +65,10 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light" storageKey="zohar-media-theme">
+        {/* <MyApolloProvider> */}
         <Router>
           <Routes>
+            <Route path="/" element={<div>Hello</div>} />
             {/* Public auth routes */}
             <Route
               path="/login"
@@ -182,6 +184,7 @@ function App() {
           </Routes>
         </Router>
         <Toaster />
+        {/* </MyApolloProvider> */}
       </ThemeProvider>
     </ErrorBoundary>
   );

@@ -1,14 +1,7 @@
-import { useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { AddMedia } from "@/components/forms/add-media";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +10,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -24,20 +18,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Search,
-  Upload,
-  Eye,
-  Edit,
-  Trash2,
-  Play,
-  Image as ImageIcon,
-  Video,
-  Plus,
-} from "lucide-react";
-import { sampleMedia, MediaItem } from "@/data/sample-data";
+import { MediaItem, sampleMedia } from "@/data/sample-data";
 import { formatDate } from "@/lib/utils";
-import { AddMedia } from "@/components/forms/add-media";
+import {
+  Edit,
+  Eye,
+  Image as ImageIcon,
+  Play,
+  Plus,
+  Search,
+  Trash2,
+  Upload,
+  Video,
+} from "lucide-react";
+import { useState } from "react";
 
 export function Media() {
   const [media, setMedia] = useState(sampleMedia);

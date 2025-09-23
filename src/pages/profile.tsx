@@ -17,14 +17,14 @@ import { useToast } from "@/hooks/use-toast";
 
 export function Profile() {
   const dispatch = useAppDispatch();
-  const { user } = useAppSelector((state) => state.auth);
+  const { currentUser } = useAppSelector((state) => state.auth);
   const { toast } = useToast();
 
   const handleLogout = () => {
     dispatch(logoutUser());
   };
 
-  if (!user) {
+  if (!currentUser) {
     return <div>Loading...</div>;
   }
 
@@ -78,23 +78,25 @@ export function Profile() {
           <CardContent className="space-y-4">
             <div className="flex items-center space-x-4">
               <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-                {user.avatar_url ? (
+                {currentUser.avatar_url ? (
                   <img
-                    src={user.avatar_url}
-                    alt={`${user.first_name} ${user.last_name}`}
+                    src={currentUser.avatar_url}
+                    alt={`${currentUser.first_name} ${currentUser.last_name}`}
                     className="h-16 w-16 rounded-full object-cover"
                   />
                 ) : (
                   <span className="text-2xl font-semibold text-primary">
-                    {user.first_name.charAt(0)}
+                    {currentUser.first_name.charAt(0)}
                   </span>
                 )}
               </div>
               <div>
                 <h3 className="text-lg font-semibold">
-                  {user.first_name} {user.last_name}
+                  {currentUser.first_name} {currentUser.last_name}
                 </h3>
-                <Badge className={getRoleColor(user.role)}>{user.role}</Badge>
+                <Badge className={getRoleColor(currentUser.role)}>
+                  {currentUser.role}
+                </Badge>
               </div>
             </div>
 
@@ -105,7 +107,9 @@ export function Profile() {
                 <Mail className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <Label className="text-sm font-medium">Email</Label>
-                  <p className="text-sm text-muted-foreground">{user.email}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {currentUser.email}
+                  </p>
                 </div>
               </div>
 
@@ -114,7 +118,7 @@ export function Profile() {
                 <div>
                   <Label className="text-sm font-medium">Status</Label>
                   <p className="text-sm text-muted-foreground">
-                    {user.is_active ? "Active" : "Inactive"}
+                    {currentUser.is_active ? "Active" : "Inactive"}
                   </p>
                 </div>
               </div>
@@ -124,18 +128,18 @@ export function Profile() {
                 <div>
                   <Label className="text-sm font-medium">Member since</Label>
                   <p className="text-sm text-muted-foreground">
-                    {formatDate(user.created_at)}
+                    {formatDate(currentUser.createdAt)}
                   </p>
                 </div>
               </div>
 
-              {user.last_login_at && (
+              {currentUser.last_login_at && (
                 <div className="flex items-center space-x-3">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <Label className="text-sm font-medium">Last login</Label>
                     <p className="text-sm text-muted-foreground">
-                      {formatDate(user.last_login_at)}
+                      {formatDate(currentUser.last_login_at)}
                     </p>
                   </div>
                 </div>
@@ -160,7 +164,7 @@ export function Profile() {
               <Label htmlFor="firstName">First Name</Label>
               <Input
                 id="firstName"
-                value={user.first_name}
+                value={currentUser.first_name}
                 disabled
                 className="bg-muted"
               />
@@ -170,7 +174,7 @@ export function Profile() {
               <Label htmlFor="lastName">Last Name</Label>
               <Input
                 id="lastName"
-                value={user.last_name}
+                value={currentUser.last_name}
                 disabled
                 className="bg-muted"
               />
@@ -180,7 +184,7 @@ export function Profile() {
               <Label htmlFor="email">Email Address</Label>
               <Input
                 id="email"
-                value={user.email}
+                value={currentUser.email}
                 disabled
                 className="bg-muted"
               />
@@ -190,7 +194,7 @@ export function Profile() {
               <Label htmlFor="role">Role</Label>
               <Input
                 id="role"
-                value={user.role}
+                value={currentUser.role}
                 disabled
                 className="bg-muted"
               />

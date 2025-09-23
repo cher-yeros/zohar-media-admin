@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery, useMutation } from "@apollo/client";
 import {
   Card,
   CardContent,
@@ -48,14 +49,23 @@ import {
   Search,
   Filter,
 } from "lucide-react";
-import { sampleTeamMembers, TeamMember } from "@/data/sample-data";
 import { formatDate } from "@/lib/utils";
 import { Loading } from "@/components/ui/loading";
 import { useToast } from "@/hooks/use-toast";
+import { GET_TEAM_MEMBERS } from "@/lib/graphql/queries";
+import {
+  CREATE_TEAM_MEMBER,
+  UPDATE_TEAM_MEMBER,
+  DELETE_TEAM_MEMBER,
+} from "@/lib/graphql/mutations";
+import {
+  TeamMember,
+  TeamMemberFormData,
+  CreateTeamMemberInput,
+  UpdateTeamMemberInput,
+} from "@/lib/types/team";
 
 export function Team() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -64,109 +74,209 @@ export function Team() {
   const { toast } = useToast();
 
   // Form state
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<TeamMemberFormData>({
     name: "",
     role: "",
     email: "",
     phone: "",
     bio: "",
-    skills: [] as string[],
-    status: "active" as "active" | "inactive",
+    skills: [],
+    status: "active",
     linkedin: "",
     twitter: "",
     instagram: "",
+    joinDate: new Date().toISOString().split("T")[0],
+    avatarUrl: "",
   });
 
-  // Simulate loading state
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-      setTeamMembers(sampleTeamMembers);
-    }, 1000);
+  // Apollo Client queries
+  const {
+    data: teamData,
+    loading: teamLoading,
+    refetch: refetchTeam,
+  } = useQuery(GET_TEAM_MEMBERS);
 
-    return () => clearTimeout(timer);
-  }, []);
+  // Apollo Client mutations
+  const [createTeamMember] = useMutation(CREATE_TEAM_MEMBER);
+  const [updateTeamMember] = useMutation(UPDATE_TEAM_MEMBER);
+  const [deleteTeamMember] = useMutation(DELETE_TEAM_MEMBER);
 
-  const handleAddMember = () => {
-    const newMember: TeamMember = {
-      id: (teamMembers.length + 1).toString(),
-      name: formData.name,
-      role: formData.role,
-      email: formData.email,
-      phone: formData.phone,
-      bio: formData.bio,
-      skills: formData.skills,
-      joinDate: new Date(),
-      status: formData.status,
-      socialLinks: {
-        linkedin: formData.linkedin,
-        twitter: formData.twitter,
-        instagram: formData.instagram,
-      },
-    };
+  const teamMembers = teamData?.teamMembers || [];
+  const isLoading = teamLoading;
 
-    setTeamMembers([...teamMembers, newMember]);
-    setIsAddDialogOpen(false);
-    resetForm();
-    toast({
-      title: "Team member added",
-      description: `${formData.name} has been added to the team.`,
-    });
+  const handleAddMember = async () => {
+    try {
+      const socialLinks = [];
+      if (formData.linkedin)
+        socialLinks.push({ platform: "linkedin", url: formData.linkedin });
+      if (formData.twitter)
+        socialLinks.push({ platform: "twitter", url: formData.twitter });
+      if (formData.instagram)
+        socialLinks.push({ platform: "instagram", url: formData.instagram });
+
+      const input: CreateTeamMemberInput = {
+        name: formData.name,
+        role: formData.role,
+        email: formData.email,
+        phone: formData.phone || null,
+        avatar_url: formData.avatarUrl || null,
+        bio: formData.bio || null,
+        join_date: formData.joinDate,
+        status: formData.status,
+        skills: formData.skills,
+        social_links: socialLinks,
+      };
+
+      const result = await createTeamMember({
+        variables: input,
+      });
+
+      if (result.data?.createTeamMember?.success) {
+        setIsAddDialogOpen(false);
+        resetForm();
+        refetchTeam();
+        toast({
+          title: "Team member added",
+          description: `${formData.name} has been added to the team.`,
+        });
+      } else {
+        throw new Error(
+          result.data?.createTeamMember?.message ||
+            "Failed to create team member"
+        );
+      }
+    } catch (error) {
+      console.error("Error creating team member:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to add team member. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleEditMember = (member: TeamMember) => {
     setEditingMember(member);
+
+    // Extract social links
+    const linkedin =
+      member.social_links.find((link) => link.platform === "linkedin")?.url ||
+      "";
+    const twitter =
+      member.social_links.find((link) => link.platform === "twitter")?.url ||
+      "";
+    const instagram =
+      member.social_links.find((link) => link.platform === "instagram")?.url ||
+      "";
+
     setFormData({
       name: member.name,
       role: member.role,
       email: member.email,
       phone: member.phone || "",
       bio: member.bio || "",
-      skills: member.skills,
+      skills: member.skills.map((skill) => skill.skill_name),
       status: member.status,
-      linkedin: member.socialLinks?.linkedin || "",
-      twitter: member.socialLinks?.twitter || "",
-      instagram: member.socialLinks?.instagram || "",
+      linkedin,
+      twitter,
+      instagram,
+      joinDate: member.join_date.split("T")[0],
+      avatarUrl: member.avatar_url || "",
     });
     setIsEditDialogOpen(true);
   };
 
-  const handleUpdateMember = () => {
+  const handleUpdateMember = async () => {
     if (!editingMember) return;
 
-    const updatedMembers = teamMembers.map((member) =>
-      member.id === editingMember.id
-        ? {
-            ...member,
-            ...formData,
-            socialLinks: {
-              linkedin: formData.linkedin,
-              twitter: formData.twitter,
-              instagram: formData.instagram,
-            },
-          }
-        : member
-    );
+    try {
+      const socialLinks = [];
+      if (formData.linkedin)
+        socialLinks.push({ platform: "linkedin", url: formData.linkedin });
+      if (formData.twitter)
+        socialLinks.push({ platform: "twitter", url: formData.twitter });
+      if (formData.instagram)
+        socialLinks.push({ platform: "instagram", url: formData.instagram });
 
-    setTeamMembers(updatedMembers);
-    setIsEditDialogOpen(false);
-    setEditingMember(null);
-    resetForm();
-    toast({
-      title: "Team member updated",
-      description: `${formData.name}'s information has been updated.`,
-    });
+      const input: UpdateTeamMemberInput = {
+        name: formData.name,
+        role: formData.role,
+        email: formData.email,
+        phone: formData.phone || null,
+        avatar_url: formData.avatarUrl || null,
+        bio: formData.bio || null,
+        status: formData.status,
+        skills: formData.skills,
+        social_links: socialLinks,
+      };
+
+      const result = await updateTeamMember({
+        variables: {
+          id: editingMember.id,
+          ...input,
+        },
+      });
+
+      if (result.data?.updateTeamMember?.success) {
+        setIsEditDialogOpen(false);
+        setEditingMember(null);
+        resetForm();
+        refetchTeam();
+        toast({
+          title: "Team member updated",
+          description: `${formData.name}'s information has been updated.`,
+        });
+      } else {
+        throw new Error(
+          result.data?.updateTeamMember?.message ||
+            "Failed to update team member"
+        );
+      }
+    } catch (error) {
+      console.error("Error updating team member:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to update team member. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDeleteMember = (memberId: string) => {
-    const updatedMembers = teamMembers.filter(
-      (member) => member.id !== memberId
-    );
-    setTeamMembers(updatedMembers);
-    toast({
-      title: "Team member removed",
-      description: "The team member has been removed from the team.",
-    });
+  const handleDeleteMember = async (memberId: string) => {
+    try {
+      const result = await deleteTeamMember({
+        variables: { id: memberId },
+      });
+
+      if (result.data?.deleteTeamMember?.success) {
+        refetchTeam();
+        toast({
+          title: "Team member removed",
+          description: "The team member has been removed from the team.",
+        });
+      } else {
+        throw new Error(
+          result.data?.deleteTeamMember?.message ||
+            "Failed to delete team member"
+        );
+      }
+    } catch (error) {
+      console.error("Error deleting team member:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to delete team member. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const resetForm = () => {
@@ -181,6 +291,8 @@ export function Team() {
       linkedin: "",
       twitter: "",
       instagram: "",
+      joinDate: new Date().toISOString().split("T")[0],
+      avatarUrl: "",
     });
   };
 
@@ -328,9 +440,9 @@ export function Team() {
                   <TableCell>
                     <div className="flex items-center space-x-3">
                       <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        {member.avatar ? (
+                        {member.avatar_url ? (
                           <img
-                            src={member.avatar}
+                            src={member.avatar_url}
                             alt={member.name}
                             className="h-10 w-10 rounded-full object-cover"
                           />
@@ -346,7 +458,10 @@ export function Team() {
                       <div>
                         <div className="font-medium">{member.name}</div>
                         <div className="text-sm text-muted-foreground">
-                          {member.skills.slice(0, 2).join(", ")}
+                          {member.skills
+                            .slice(0, 2)
+                            .map((skill) => skill.skill_name)
+                            .join(", ")}
                           {member.skills.length > 2 && "..."}
                         </div>
                       </div>
@@ -369,7 +484,7 @@ export function Team() {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>{formatDate(member.joinDate)}</TableCell>
+                  <TableCell>{formatDate(member.join_date)}</TableCell>
                   <TableCell>
                     <Badge
                       variant={
@@ -435,8 +550,8 @@ function TeamMemberForm({
   onSubmit,
   onCancel,
 }: {
-  formData: any;
-  setFormData: (data: any) => void;
+  formData: TeamMemberFormData;
+  setFormData: (data: TeamMemberFormData) => void;
   onSubmit: () => void;
   onCancel: () => void;
 }) {
@@ -489,6 +604,31 @@ function TeamMemberForm({
             onChange={(e) =>
               setFormData({ ...formData, phone: e.target.value })
             }
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="joinDate">Join Date</Label>
+          <Input
+            id="joinDate"
+            type="date"
+            value={formData.joinDate}
+            onChange={(e) =>
+              setFormData({ ...formData, joinDate: e.target.value })
+            }
+          />
+        </div>
+        <div>
+          <Label htmlFor="avatarUrl">Avatar URL</Label>
+          <Input
+            id="avatarUrl"
+            value={formData.avatarUrl}
+            onChange={(e) =>
+              setFormData({ ...formData, avatarUrl: e.target.value })
+            }
+            placeholder="https://example.com/avatar.jpg"
           />
         </div>
       </div>

@@ -12,7 +12,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <Provider store={store}>
       <PersistGate persistor={persistor}>
         <ToastContainer theme="colored" autoClose={500} />
-        <App />{" "}
+        <App />
       </PersistGate>
     </Provider>
   </React.StrictMode>

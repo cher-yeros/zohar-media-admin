@@ -110,7 +110,7 @@ type User {
   avatar_url: String
   is_active: Boolean!
   last_login_at: Date
-  created_at: Date!
+  createdAt: Date!
   updated_at: Date!
 }
 ```
@@ -139,7 +139,7 @@ mutation CreateUser($input: CreateUserInput!) {
       role
       avatar_url
       is_active
-      created_at
+      createdAt
     }
   }
 }
@@ -211,7 +211,7 @@ type TeamMember {
   bio: String
   join_date: Date!
   status: TeamMemberStatus!
-  created_at: Date!
+  createdAt: Date!
   updated_at: Date!
   skills: [TeamMemberSkill!]!
   social_links: [TeamMemberSocialLink!]!
@@ -228,7 +228,7 @@ type TeamMemberSkill {
   id: ID!
   team_member_id: ID!
   skill_name: String!
-  created_at: Date!
+  createdAt: Date!
   team_member: TeamMember!
 }
 
@@ -237,7 +237,7 @@ type TeamMemberSocialLink {
   team_member_id: ID!
   platform: String!
   url: String!
-  created_at: Date!
+  createdAt: Date!
   team_member: TeamMember!
 }
 ```
@@ -352,7 +352,7 @@ type PortfolioCategory {
   name: String!
   description: String
   color: String!
-  created_at: Date!
+  createdAt: Date!
   updated_at: Date!
   portfolio_items: [PortfolioItem!]!
 }
@@ -369,7 +369,7 @@ type PortfolioItem {
   featured: Boolean!
   project_url: String
   testimonial: String
-  created_at: Date!
+  createdAt: Date!
   updated_at: Date!
   category: PortfolioCategory
   images: [PortfolioItemImage!]!
@@ -391,7 +391,7 @@ type PortfolioItemImage {
   image_url: String!
   alt_text: String
   sort_order: Int!
-  created_at: Date!
+  createdAt: Date!
   portfolio_item: PortfolioItem!
 }
 
@@ -399,7 +399,7 @@ type PortfolioItemTag {
   id: ID!
   portfolio_item_id: ID!
   tag_name: String!
-  created_at: Date!
+  createdAt: Date!
   portfolio_item: PortfolioItem!
 }
 
@@ -407,7 +407,7 @@ type PortfolioItemTechnology {
   id: ID!
   portfolio_item_id: ID!
   technology_name: String!
-  created_at: Date!
+  createdAt: Date!
   portfolio_item: PortfolioItem!
 }
 
@@ -416,7 +416,7 @@ type PortfolioItemTeamMember {
   portfolio_item_id: ID!
   team_member_id: ID!
   role: String
-  created_at: Date!
+  createdAt: Date!
   portfolio_item: PortfolioItem!
   team_member: TeamMember!
 }
@@ -589,7 +589,7 @@ type Inquiry {
   assigned_to: ID
   response: String
   response_date: Date
-  created_at: Date!
+  createdAt: Date!
   updated_at: Date!
   assigned_team_member: TeamMember
 }
@@ -729,7 +729,7 @@ type Testimonial {
   featured: Boolean!
   avatar_url: String
   portfolio_item_id: ID
-  created_at: Date!
+  createdAt: Date!
   updated_at: Date!
   portfolio_item: PortfolioItem
 }
@@ -796,7 +796,7 @@ type MediaItem {
   dimensions: String
   duration: String
   upload_date: Date!
-  created_at: Date!
+  createdAt: Date!
   updated_at: Date!
   tags: [MediaItemTag!]!
 }
@@ -810,7 +810,7 @@ type MediaItemTag {
   id: ID!
   media_item_id: ID!
   tag_name: String!
-  created_at: Date!
+  createdAt: Date!
   media_item: MediaItem!
 }
 ```
@@ -858,7 +858,7 @@ type AnalyticsData {
   inquiries_this_month: Int!
   inquiry_trend: Float!
   media_total_views: Int!
-  created_at: Date!
+  createdAt: Date!
   updated_at: Date!
 }
 
@@ -871,7 +871,7 @@ type BusinessStatistics {
   average_project_value: Float!
   is_public: Boolean!
   auto_update: Boolean!
-  created_at: Date!
+  createdAt: Date!
   updated_at: Date!
 }
 ```
@@ -936,7 +936,7 @@ type SystemSettings {
   website_url: String
   contact_email: String
   theme: Theme!
-  created_at: Date!
+  createdAt: Date!
   updated_at: Date!
 }
 
@@ -953,7 +953,7 @@ type ActivityLog {
   entity_id: ID
   description: String
   metadata: JSON
-  created_at: Date!
+  createdAt: Date!
   user: User
 }
 ```
@@ -994,7 +994,7 @@ query GetActivityLogs(
       entity_id
       description
       metadata
-      created_at
+      createdAt
       user {
         id
         first_name

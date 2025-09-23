@@ -41,7 +41,7 @@ export const CREATE_USER = gql`
         role
         avatar_url
         is_active
-        created_at
+        createdAt
       }
     }
   }
@@ -76,18 +76,29 @@ export const UPDATE_USER = gql`
 
 // Team Member Mutations
 export const CREATE_TEAM_MEMBER = gql`
-  mutation CreateTeamMember($input: CreateTeamMemberInput!) {
+  mutation CreateTeamMember(
+    $name: String!
+    $role: String!
+    $email: String!
+    $phone: String
+    $avatar_url: String
+    $bio: String
+    $join_date: String!
+    $status: String
+    $skills: [String!]
+    $social_links: [TeamMemberSocialLinkInput!]
+  ) {
     createTeamMember(
-      name: $input.name
-      role: $input.role
-      email: $input.email
-      phone: $input.phone
-      avatar_url: $input.avatar_url
-      bio: $input.bio
-      join_date: $input.join_date
-      status: $input.status
-      skills: $input.skills
-      social_links: $input.social_links
+      name: $name
+      role: $role
+      email: $email
+      phone: $phone
+      avatar_url: $avatar_url
+      bio: $bio
+      join_date: $join_date
+      status: $status
+      skills: $skills
+      social_links: $social_links
     ) {
       success
       message
@@ -101,14 +112,20 @@ export const CREATE_TEAM_MEMBER = gql`
         bio
         join_date
         status
+        createdAt
+        updatedAt
         skills {
           id
           skill_name
+          createdAt
+          updatedAt
         }
         social_links {
           id
           platform
           url
+          createdAt
+          updatedAt
         }
       }
     }
@@ -116,18 +133,29 @@ export const CREATE_TEAM_MEMBER = gql`
 `;
 
 export const UPDATE_TEAM_MEMBER = gql`
-  mutation UpdateTeamMember($id: ID!, $input: UpdateTeamMemberInput!) {
+  mutation UpdateTeamMember(
+    $id: ID!
+    $name: String
+    $role: String
+    $email: String
+    $phone: String
+    $avatar_url: String
+    $bio: String
+    $status: String
+    $skills: [String!]
+    $social_links: [TeamMemberSocialLinkInput!]
+  ) {
     updateTeamMember(
       id: $id
-      name: $input.name
-      role: $input.role
-      email: $input.email
-      phone: $input.phone
-      avatar_url: $input.avatar_url
-      bio: $input.bio
-      status: $input.status
-      skills: $input.skills
-      social_links: $input.social_links
+      name: $name
+      role: $role
+      email: $email
+      phone: $phone
+      avatar_url: $avatar_url
+      bio: $bio
+      status: $status
+      skills: $skills
+      social_links: $social_links
     ) {
       success
       message
@@ -140,38 +168,68 @@ export const UPDATE_TEAM_MEMBER = gql`
         avatar_url
         bio
         status
+        createdAt
+        updatedAt
         skills {
           id
           skill_name
+          createdAt
+          updatedAt
         }
         social_links {
           id
           platform
           url
+          createdAt
+          updatedAt
         }
       }
     }
   }
 `;
 
+export const DELETE_TEAM_MEMBER = gql`
+  mutation DeleteTeamMember($id: ID!) {
+    deleteTeamMember(id: $id) {
+      success
+      message
+    }
+  }
+`;
+
 // Portfolio Mutations
 export const CREATE_PORTFOLIO_ITEM = gql`
-  mutation CreatePortfolioItem($input: CreatePortfolioItemInput!) {
+  mutation CreatePortfolioItem(
+    $title: String!
+    $description: String!
+    $category_id: ID
+    $thumbnail_url: String
+    $client_name: String
+    $project_date: String!
+    $status: PortfolioItemStatus
+    $featured: Boolean
+    $project_url: String
+    $testimonial: String
+    $images: [PortfolioItemImageInput!]
+    $tags: [String!]
+    $technologies: [String!]
+    $team_members: [PortfolioItemTeamMemberInput!]
+  ) {
     createPortfolioItem(
-      title: $input.title
-      description: $input.description
-      category_id: $input.category_id
-      thumbnail_url: $input.thumbnail_url
-      client_name: $input.client_name
-      project_date: $input.project_date
-      status: $input.status
-      featured: $input.featured
-      project_url: $input.project_url
-      testimonial: $input.testimonial
-      images: $input.images
-      tags: $input.tags
-      technologies: $input.technologies
-      team_members: $input.team_members
+      title: $title
+      description: $description
+      category_id: $category_id
+      thumbnail_url: $thumbnail_url
+      client_name: $client_name
+      project_date: $project_date
+      status: $status
+      featured: $featured
+      project_url: $project_url
+      testimonial: $testimonial
+      images: $images
+      tags: $tags
+      technologies: $technologies
+      team_members: $team_members
     ) {
       success
       message
@@ -186,9 +244,12 @@ export const CREATE_PORTFOLIO_ITEM = gql`
         featured
         project_url
         testimonial
+        createdAt
+        updated_at
         category {
           id
           name
+          description
           color
         }
         images {
@@ -219,21 +280,166 @@ export const CREATE_PORTFOLIO_ITEM = gql`
   }
 `;
 
-export const CREATE_PORTFOLIO_CATEGORY = gql`
-  mutation CreatePortfolioCategory($input: CreatePortfolioCategoryInput!) {
-    createPortfolioCategory(
-      name: $input.name
-      description: $input.description
-      color: $input.color
+export const UPDATE_PORTFOLIO_ITEM = gql`
+  mutation UpdatePortfolioItem(
+    $id: ID!
+    $title: String
+    $description: String
+    $category_id: ID
+    $thumbnail_url: String
+    $client_name: String
+    $project_date: String
+    $status: PortfolioItemStatus
+    $featured: Boolean
+    $project_url: String
+    $testimonial: String
+    $images: [PortfolioItemImageInput!]
+    $tags: [String!]
+    $technologies: [String!]
+    $team_members: [PortfolioItemTeamMemberInput!]
+  ) {
+    updatePortfolioItem(
+      id: $id
+      title: $title
+      description: $description
+      category_id: $category_id
+      thumbnail_url: $thumbnail_url
+      client_name: $client_name
+      project_date: $project_date
+      status: $status
+      featured: $featured
+      project_url: $project_url
+      testimonial: $testimonial
+      images: $images
+      tags: $tags
+      technologies: $technologies
+      team_members: $team_members
     ) {
       success
       message
-      portfolioCategory {
+      portfolioItem {
+        id
+        title
+        description
+        thumbnail_url
+        client_name
+        project_date
+        status
+        featured
+        project_url
+        testimonial
+        createdAt
+        updated_at
+        category {
+          id
+          name
+          description
+          color
+        }
+        images {
+          id
+          image_url
+          alt_text
+          sort_order
+        }
+        tags {
+          id
+          tag_name
+        }
+        technologies {
+          id
+          technology_name
+        }
+        team_members {
+          id
+          role
+          team_member {
+            id
+            name
+            avatar_url
+          }
+        }
+      }
+    }
+  }
+`;
+
+export const DELETE_PORTFOLIO_ITEM = gql`
+  mutation DeletePortfolioItem($id: ID!) {
+    deletePortfolioItem(id: $id) {
+      success
+      message
+    }
+  }
+`;
+
+export const CREATE_PORTFOLIO_CATEGORY = gql`
+  mutation CreatePortfolioCategory(
+    $name: String!
+    $description: String
+    $color: String!
+  ) {
+    createPortfolioCategory(
+      name: $name
+      description: $description
+      color: $color
+    ) {
+      success
+      message
+      category {
         id
         name
         description
         color
+        createdAt
+        updated_at
+        portfolio_items {
+          id
+          title
+          featured
+        }
       }
+    }
+  }
+`;
+
+export const UPDATE_PORTFOLIO_CATEGORY = gql`
+  mutation UpdatePortfolioCategory(
+    $id: ID!
+    $name: String
+    $description: String
+    $color: String
+  ) {
+    updatePortfolioCategory(
+      id: $id
+      name: $name
+      description: $description
+      color: $color
+    ) {
+      success
+      message
+      category {
+        id
+        name
+        description
+        color
+        createdAt
+        updated_at
+        portfolio_items {
+          id
+          title
+          featured
+        }
+      }
+    }
+  }
+`;
+
+export const DELETE_PORTFOLIO_CATEGORY = gql`
+  mutation DeletePortfolioCategory($id: ID!) {
+    deletePortfolioCategory(id: $id) {
+      success
+      message
     }
   }
 `;

@@ -12,7 +12,7 @@ export const GET_USERS = gql`
       avatar_url
       is_active
       last_login_at
-      created_at
+      createdAt
     }
   }
 `;
@@ -28,7 +28,7 @@ export const GET_USER = gql`
       avatar_url
       is_active
       last_login_at
-      created_at
+      createdAt
       updated_at
     }
   }
@@ -47,14 +47,20 @@ export const GET_TEAM_MEMBERS = gql`
       bio
       join_date
       status
+      createdAt
+      updatedAt
       skills {
         id
         skill_name
+        createdAt
+        updatedAt
       }
       social_links {
         id
         platform
         url
+        createdAt
+        updatedAt
       }
     }
   }
@@ -72,14 +78,20 @@ export const GET_TEAM_MEMBER = gql`
       bio
       join_date
       status
+      createdAt
+      updatedAt
       skills {
         id
         skill_name
+        createdAt
+        updatedAt
       }
       social_links {
         id
         platform
         url
+        createdAt
+        updatedAt
       }
     }
   }
@@ -112,9 +124,12 @@ export const GET_PORTFOLIO_ITEMS = gql`
         featured
         project_url
         testimonial
+        createdAt
+        updated_at
         category {
           id
           name
+          description
           color
         }
         images {
@@ -153,10 +168,78 @@ export const GET_PORTFOLIO_CATEGORIES = gql`
       name
       description
       color
+      createdAt
+      updated_at
       portfolio_items {
         id
         title
         featured
+      }
+    }
+  }
+`;
+
+export const GET_PORTFOLIO_CATEGORY = gql`
+  query GetPortfolioCategory($id: ID!) {
+    portfolioCategory(id: $id) {
+      id
+      name
+      description
+      color
+      createdAt
+      updated_at
+      portfolio_items {
+        id
+        title
+        featured
+      }
+    }
+  }
+`;
+
+export const GET_PORTFOLIO_ITEM = gql`
+  query GetPortfolioItem($id: ID!) {
+    portfolioItem(id: $id) {
+      id
+      title
+      description
+      thumbnail_url
+      client_name
+      project_date
+      status
+      featured
+      project_url
+      testimonial
+      createdAt
+      updated_at
+      category {
+        id
+        name
+        description
+        color
+      }
+      images {
+        id
+        image_url
+        alt_text
+        sort_order
+      }
+      tags {
+        id
+        tag_name
+      }
+      technologies {
+        id
+        technology_name
+      }
+      team_members {
+        id
+        role
+        team_member {
+          id
+          name
+          avatar_url
+        }
       }
     }
   }
@@ -343,7 +426,7 @@ export const GET_ACTIVITY_LOGS = gql`
         entity_id
         description
         metadata
-        created_at
+        createdAt
         user {
           id
           first_name

@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -6,16 +7,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -26,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Loading } from "@/components/ui/loading";
 import {
   Select,
   SelectContent,
@@ -35,39 +26,52 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Plus,
-  Edit,
-  Trash2,
-  Eye,
-  ExternalLink,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import {
+  CREATE_PORTFOLIO_ITEM,
+  DELETE_PORTFOLIO_ITEM,
+  UPDATE_PORTFOLIO_ITEM,
+} from "@/lib/graphql/mutations";
+import {
+  GET_PORTFOLIO_CATEGORIES,
+  GET_PORTFOLIO_ITEMS,
+  GET_TEAM_MEMBERS,
+} from "@/lib/graphql/queries";
+import {
+  CreatePortfolioItemInput,
+  PortfolioCategory,
+  PortfolioItem,
+  PortfolioItemFormData,
+  PortfolioItemStatus,
+  UpdatePortfolioItemInput,
+} from "@/lib/types/portfolio";
+import { formatDate } from "@/lib/utils";
+import { useMutation, useQuery } from "@apollo/client";
+import {
   Calendar,
-  User,
-  Tag,
-  Image as ImageIcon,
-  Video,
-  Search,
-  Filter,
-  Star,
   CheckCircle,
   Clock,
+  Edit,
+  ExternalLink,
   FileText,
+  Image as ImageIcon,
+  Plus,
+  Search,
+  Star,
+  Tag,
+  Trash2,
 } from "lucide-react";
-import {
-  samplePortfolioItems,
-  samplePortfolioCategories,
-  sampleTeamMembers,
-  PortfolioItem,
-  PortfolioCategory,
-} from "@/data/sample-data";
-import { formatDate } from "@/lib/utils";
-import { Loading } from "@/components/ui/loading";
-import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 export function Portfolio() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
-  const [categories, setCategories] = useState<PortfolioCategory[]>([]);
-  const [teamMembers, setTeamMembers] = useState(sampleTeamMembers);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -77,57 +81,102 @@ export function Portfolio() {
   const { toast } = useToast();
 
   // Form state
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<PortfolioItemFormData>({
     title: "",
     description: "",
     categoryId: "",
     client: "",
-    status: "completed" as "completed" | "in-progress" | "draft",
-    tags: [] as string[],
-    teamMembers: [] as string[],
+    status: PortfolioItemStatus.COMPLETED,
+    tags: [],
+    teamMembers: [],
     featured: false,
-    technologies: [] as string[],
+    technologies: [],
     projectUrl: "",
     testimonial: "",
+    projectDate: new Date().toISOString().split("T")[0],
+    thumbnailUrl: "",
   });
 
-  // Simulate loading state
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-      setPortfolioItems(samplePortfolioItems);
-      setCategories(samplePortfolioCategories);
-    }, 1000);
+  // Apollo Client queries
+  const { data: portfolioData, loading: portfolioLoading } = useQuery(
+    GET_PORTFOLIO_ITEMS,
+    {
+      variables: {
+        category_id: filterCategory === "all" ? null : filterCategory,
+        status: filterStatus === "all" ? null : filterStatus.toUpperCase(),
+        limit: 100,
+        offset: 0,
+      },
+    }
+  );
 
-    return () => clearTimeout(timer);
-  }, []);
+  console.log(portfolioData);
 
-  const handleAddItem = () => {
-    const newItem: PortfolioItem = {
-      id: (portfolioItems.length + 1).toString(),
-      title: formData.title,
-      description: formData.description,
-      categoryId: formData.categoryId,
-      images: [], // Would be handled by file upload in real app
-      thumbnail: "", // Would be handled by file upload in real app
-      client: formData.client,
-      projectDate: new Date(),
-      status: formData.status,
-      tags: formData.tags,
-      teamMembers: formData.teamMembers,
-      featured: formData.featured,
-      technologies: formData.technologies,
-      projectUrl: formData.projectUrl,
-      testimonial: formData.testimonial,
-    };
+  const { data: categoriesData, loading: categoriesLoading } = useQuery(
+    GET_PORTFOLIO_CATEGORIES
+  );
+  const { data: teamData, loading: teamLoading } = useQuery(GET_TEAM_MEMBERS);
 
-    setPortfolioItems([...portfolioItems, newItem]);
-    setIsAddDialogOpen(false);
-    resetForm();
-    toast({
-      title: "Portfolio item added",
-      description: `${formData.title} has been added to the portfolio.`,
-    });
+  // Apollo Client mutations
+  const [createPortfolioItem] = useMutation(CREATE_PORTFOLIO_ITEM);
+  const [updatePortfolioItem] = useMutation(UPDATE_PORTFOLIO_ITEM);
+  const [deletePortfolioItem] = useMutation(DELETE_PORTFOLIO_ITEM);
+
+  const portfolioItems = portfolioData?.portfolioItems?.items || [];
+  const categories = categoriesData?.portfolioCategories || [];
+  const teamMembers = teamData?.teamMembers || [];
+  const isLoading = portfolioLoading || categoriesLoading || teamLoading;
+
+  const handleAddItem = async () => {
+    try {
+      const input: CreatePortfolioItemInput = {
+        title: formData.title,
+        description: formData.description,
+        category_id: formData.categoryId || undefined,
+        thumbnail_url: formData.thumbnailUrl || undefined,
+        client_name: formData.client || undefined,
+        project_date: formData.projectDate,
+        status: formData.status,
+        featured: formData.featured,
+        project_url: formData.projectUrl || undefined,
+        testimonial: formData.testimonial || undefined,
+        tags: formData.tags,
+        technologies: formData.technologies,
+        team_members: formData.teamMembers.map((memberId) => ({
+          team_member_id: memberId,
+          role: undefined,
+        })),
+      };
+
+      const result = await createPortfolioItem({
+        variables: input,
+      });
+
+      if (result.data?.createPortfolioItem?.success) {
+        setIsAddDialogOpen(false);
+        resetForm();
+        refetchPortfolioItems();
+        toast({
+          title: "Portfolio item added",
+          description: `${formData.title} has been added to the portfolio.`,
+        });
+      } else {
+        throw new Error(
+          result.data?.createPortfolioItem?.message ||
+            "Failed to create portfolio item"
+        );
+      }
+    } catch (error) {
+      console.error("Error creating portfolio item:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to add portfolio item. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleEditItem = (item: PortfolioItem) => {
@@ -135,48 +184,108 @@ export function Portfolio() {
     setFormData({
       title: item.title,
       description: item.description,
-      categoryId: item.categoryId,
-      client: item.client || "",
+      categoryId: item.category?.id || "",
+      client: item.client_name || "",
       status: item.status,
-      tags: item.tags,
-      teamMembers: item.teamMembers,
+      tags: item.tags.map((tag) => tag.tag_name),
+      teamMembers: item.team_members.map((tm) => tm.team_member.id),
       featured: item.featured,
-      technologies: item.technologies || [],
-      projectUrl: item.projectUrl || "",
+      technologies: item.technologies.map((tech) => tech.technology_name),
+      projectUrl: item.project_url || "",
       testimonial: item.testimonial || "",
+      projectDate: item.project_date.split("T")[0],
+      thumbnailUrl: item.thumbnail_url || "",
     });
     setIsEditDialogOpen(true);
   };
 
-  const handleUpdateItem = () => {
+  const handleUpdateItem = async () => {
     if (!editingItem) return;
 
-    const updatedItems = portfolioItems.map((item) =>
-      item.id === editingItem.id
-        ? {
-            ...item,
-            ...formData,
-          }
-        : item
-    );
+    try {
+      const input: UpdatePortfolioItemInput = {
+        title: formData.title,
+        description: formData.description,
+        category_id: formData.categoryId || undefined,
+        thumbnail_url: formData.thumbnailUrl || undefined,
+        client_name: formData.client || undefined,
+        project_date: formData.projectDate,
+        status: formData.status,
+        featured: formData.featured,
+        project_url: formData.projectUrl || undefined,
+        testimonial: formData.testimonial || undefined,
+        tags: formData.tags,
+        technologies: formData.technologies,
+        team_members: formData.teamMembers.map((memberId) => ({
+          team_member_id: memberId,
+          role: undefined,
+        })),
+      };
 
-    setPortfolioItems(updatedItems);
-    setIsEditDialogOpen(false);
-    setEditingItem(null);
-    resetForm();
-    toast({
-      title: "Portfolio item updated",
-      description: `${formData.title} has been updated.`,
-    });
+      const result = await updatePortfolioItem({
+        variables: {
+          id: editingItem.id,
+          ...input,
+        },
+      });
+
+      if (result.data?.updatePortfolioItem?.success) {
+        setIsEditDialogOpen(false);
+        setEditingItem(null);
+        resetForm();
+        refetchPortfolioItems();
+        toast({
+          title: "Portfolio item updated",
+          description: `${formData.title} has been updated.`,
+        });
+      } else {
+        throw new Error(
+          result.data?.updatePortfolioItem?.message ||
+            "Failed to update portfolio item"
+        );
+      }
+    } catch (error) {
+      console.error("Error updating portfolio item:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to update portfolio item. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDeleteItem = (itemId: string) => {
-    const updatedItems = portfolioItems.filter((item) => item.id !== itemId);
-    setPortfolioItems(updatedItems);
-    toast({
-      title: "Portfolio item removed",
-      description: "The portfolio item has been removed.",
-    });
+  const handleDeleteItem = async (itemId: string) => {
+    try {
+      const result = await deletePortfolioItem({
+        variables: { id: itemId },
+      });
+
+      if (result.data?.deletePortfolioItem?.success) {
+        refetchPortfolioItems();
+        toast({
+          title: "Portfolio item removed",
+          description: "The portfolio item has been removed.",
+        });
+      } else {
+        throw new Error(
+          result.data?.deletePortfolioItem?.message ||
+            "Failed to delete portfolio item"
+        );
+      }
+    } catch (error) {
+      console.error("Error deleting portfolio item:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to delete portfolio item. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const resetForm = () => {
@@ -185,52 +294,55 @@ export function Portfolio() {
       description: "",
       categoryId: "",
       client: "",
-      status: "completed",
+      status: PortfolioItemStatus.COMPLETED,
       tags: [],
       teamMembers: [],
       featured: false,
       technologies: [],
       projectUrl: "",
       testimonial: "",
+      projectDate: new Date().toISOString().split("T")[0],
+      thumbnailUrl: "",
     });
   };
 
-  const filteredItems = portfolioItems.filter((item) => {
+  const filteredItems = portfolioItems.filter((item: PortfolioItem) => {
     const matchesSearch =
       item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.client?.toLowerCase().includes(searchTerm.toLowerCase());
+      item.client_name?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory =
-      filterCategory === "all" || item.categoryId === filterCategory;
+      filterCategory === "all" || item.category?.id === filterCategory;
     const matchesStatus =
-      filterStatus === "all" || item.status === filterStatus;
+      filterStatus === "all" ||
+      item.status.toLowerCase() === filterStatus.toLowerCase();
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
   const getCategoryById = (categoryId: string) => {
-    return categories.find((cat) => cat.id === categoryId);
+    return categories.find((cat: PortfolioCategory) => cat.id === categoryId);
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: PortfolioItemStatus) => {
     switch (status) {
-      case "completed":
+      case PortfolioItemStatus.COMPLETED:
         return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case "in-progress":
+      case PortfolioItemStatus.IN_PROGRESS:
         return <Clock className="h-4 w-4 text-yellow-600" />;
-      case "draft":
+      case PortfolioItemStatus.DRAFT:
         return <FileText className="h-4 w-4 text-gray-600" />;
       default:
         return null;
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: PortfolioItemStatus) => {
     switch (status) {
-      case "completed":
+      case PortfolioItemStatus.COMPLETED:
         return "default";
-      case "in-progress":
+      case PortfolioItemStatus.IN_PROGRESS:
         return "secondary";
-      case "draft":
+      case PortfolioItemStatus.DRAFT:
         return "outline";
       default:
         return "outline";
@@ -291,7 +403,12 @@ export function Portfolio() {
           <CardContent>
             <div className="text-2xl font-bold">{portfolioItems.length}</div>
             <p className="text-xs text-muted-foreground">
-              {portfolioItems.filter((p) => p.status === "completed").length}{" "}
+              {
+                portfolioItems.filter(
+                  (p: PortfolioItem) =>
+                    p.status === PortfolioItemStatus.COMPLETED
+                ).length
+              }{" "}
               completed
             </p>
           </CardContent>
@@ -305,8 +422,9 @@ export function Portfolio() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {portfolioItems.filter((p) => p.featured).length}
+              {portfolioItems.filter((p: PortfolioItem) => p.featured).length}
             </div>
+            {portfolioItems.filter((p: PortfolioItem) => p.featured).length}
             <p className="text-xs text-muted-foreground">Highlighted work</p>
           </CardContent>
         </Card>
@@ -327,7 +445,11 @@ export function Portfolio() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {portfolioItems.filter((p) => p.status === "in-progress").length}
+              {
+                portfolioItems.filter(
+                  (p) => p.status === PortfolioItemStatus.IN_PROGRESS
+                ).length
+              }
             </div>
             <p className="text-xs text-muted-foreground">Active projects</p>
           </CardContent>
@@ -395,9 +517,9 @@ export function Portfolio() {
             </TableHeader>
             <TableBody>
               {filteredItems.map((item) => {
-                const category = getCategoryById(item.categoryId);
-                const assignedTeamMembers = teamMembers.filter((member) =>
-                  item.teamMembers.includes(member.id)
+                const category = item.category;
+                const assignedTeamMembers = item.team_members.map(
+                  (tm) => tm.team_member
                 );
 
                 return (
@@ -405,9 +527,9 @@ export function Portfolio() {
                     <TableCell>
                       <div className="flex items-center space-x-3">
                         <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
-                          {item.thumbnail ? (
+                          {item.thumbnail_url ? (
                             <img
-                              src={item.thumbnail}
+                              src={item.thumbnail_url}
                               alt={item.title}
                               className="h-12 w-12 rounded-lg object-cover"
                             />
@@ -442,19 +564,19 @@ export function Portfolio() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm">{item.client || "N/A"}</div>
+                      <div className="text-sm">{item.client_name || "N/A"}</div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-1 text-sm text-muted-foreground">
                         <Calendar className="h-3 w-3" />
-                        <span>{formatDate(item.projectDate)}</span>
+                        <span>{formatDate(item.project_date)}</span>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
                         {getStatusIcon(item.status)}
                         <Badge variant={getStatusColor(item.status)}>
-                          {item.status}
+                          {item.status.replace("_", " ").toLowerCase()}
                         </Badge>
                       </div>
                     </TableCell>
@@ -466,9 +588,9 @@ export function Portfolio() {
                             className="h-6 w-6 rounded-full bg-primary/10 border-2 border-background flex items-center justify-center text-xs font-medium"
                             title={member.name}
                           >
-                            {member.avatar ? (
+                            {member.avatar_url ? (
                               <img
-                                src={member.avatar}
+                                src={member.avatar_url}
                                 alt={member.name}
                                 className="h-6 w-6 rounded-full object-cover"
                               />
@@ -489,12 +611,12 @@ export function Portfolio() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
-                        {item.projectUrl && (
+                        {item.project_url && (
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() =>
-                              window.open(item.projectUrl, "_blank")
+                              window.open(item.project_url, "_blank")
                             }
                           >
                             <ExternalLink className="h-4 w-4" />
@@ -559,8 +681,8 @@ function PortfolioItemForm({
   onSubmit,
   onCancel,
 }: {
-  formData: any;
-  setFormData: (data: any) => void;
+  formData: PortfolioItemFormData;
+  setFormData: (data: PortfolioItemFormData) => void;
   categories: PortfolioCategory[];
   teamMembers: any[];
   onSubmit: () => void;
@@ -623,6 +745,31 @@ function PortfolioItemForm({
         </div>
       </div>
 
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="projectDate">Project Date</Label>
+          <Input
+            id="projectDate"
+            type="date"
+            value={formData.projectDate}
+            onChange={(e) =>
+              setFormData({ ...formData, projectDate: e.target.value })
+            }
+          />
+        </div>
+        <div>
+          <Label htmlFor="thumbnailUrl">Thumbnail URL</Label>
+          <Input
+            id="thumbnailUrl"
+            value={formData.thumbnailUrl}
+            onChange={(e) =>
+              setFormData({ ...formData, thumbnailUrl: e.target.value })
+            }
+            placeholder="https://example.com/image.jpg"
+          />
+        </div>
+      </div>
+
       <div>
         <Label htmlFor="description">Description</Label>
         <Textarea
@@ -668,9 +815,13 @@ function PortfolioItemForm({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="in-progress">In Progress</SelectItem>
-              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value={PortfolioItemStatus.COMPLETED}>
+                Completed
+              </SelectItem>
+              <SelectItem value={PortfolioItemStatus.IN_PROGRESS}>
+                In Progress
+              </SelectItem>
+              <SelectItem value={PortfolioItemStatus.DRAFT}>Draft</SelectItem>
             </SelectContent>
           </Select>
         </div>

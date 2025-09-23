@@ -56,6 +56,10 @@ const authSlice = createSlice({
     clearError() {
       // No state changes needed for clear error
     },
+    logoutUser() {
+      // This action can be used to trigger logout logic
+      // The actual state clearing is handled by logoutFinished
+    },
   },
 });
 
@@ -69,6 +73,7 @@ export const {
   addAvatar,
   setFirstTime,
   clearError,
+  logoutUser,
 } = authSlice.actions;
 
 export default authSlice.reducer;

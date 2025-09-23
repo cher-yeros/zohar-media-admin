@@ -81,7 +81,7 @@ export function Sidebar() {
   const location = useLocation();
   const { theme, setTheme } = useTheme();
   const dispatch = useAppDispatch();
-  const { user } = useAppSelector((state) => state.auth);
+  const { currentUser } = useAppSelector((state) => state.auth);
 
   const handleLogout = () => {
     dispatch(logoutUser());
@@ -135,7 +135,7 @@ export function Sidebar() {
 
       {/* User info */}
       <div className="border-t p-4">
-        {user ? (
+        {currentUser ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -144,24 +144,24 @@ export function Sidebar() {
               >
                 <div className="flex items-center space-x-3 w-full">
                   <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    {user.avatar_url ? (
+                    {currentUser.avatar_url ? (
                       <img
-                        src={user.avatar_url}
-                        alt={`${user.first_name} ${user.last_name}`}
+                        src={currentUser.avatar_url}
+                        alt={`${currentUser.first_name} ${currentUser.last_name}`}
                         className="h-8 w-8 rounded-full object-cover"
                       />
                     ) : (
                       <span className="text-sm font-medium text-primary">
-                        {user.first_name.charAt(0)}
+                        {currentUser.first_name.charAt(0)}
                       </span>
                     )}
                   </div>
                   <div className="flex-1 min-w-0 text-left">
                     <p className="text-sm font-medium truncate">
-                      {user.first_name} {user.last_name}
+                      {currentUser.first_name} {currentUser.last_name}
                     </p>
                     <p className="text-xs text-muted-foreground truncate">
-                      {user.email}
+                      {currentUser.email}
                     </p>
                   </div>
                 </div>
@@ -171,10 +171,10 @@ export function Sidebar() {
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium leading-none">
-                    {user.first_name} {user.last_name}
+                    {currentUser.first_name} {currentUser.last_name}
                   </p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    {user.email}
+                    {currentUser.email}
                   </p>
                 </div>
               </DropdownMenuLabel>

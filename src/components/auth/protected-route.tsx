@@ -1,7 +1,6 @@
 import { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAppSelector } from "@/redux/hooks";
-import { Loading } from "@/components/ui/loading";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -14,15 +13,11 @@ export function ProtectedRoute({
   requireAuth = true,
   redirectTo = "/login",
 }: ProtectedRouteProps) {
-  const { isAuthenticated, user, isLoading } = useAppSelector(
-    (state) => state.auth
-  );
+  const { currentUser, token } = useAppSelector((state) => state.auth);
   const location = useLocation();
 
-  // Show loading while checking authentication
-  if (isLoading) {
-    return <Loading type="page" />;
-  }
+  // Determine if user is authenticated based on having both user and token
+  const isAuthenticated = !!(currentUser && token);
 
   // If authentication is required but user is not authenticated
   if (requireAuth && !isAuthenticated) {
@@ -31,7 +26,9 @@ export function ProtectedRoute({
 
   // If user is authenticated but trying to access auth pages
   if (!requireAuth && isAuthenticated) {
-    const from = location.state?.from?.pathname || "/";
+    const from =
+      (location.state as { from?: { pathname: string } })?.from?.pathname ||
+      "/";
     return <Navigate to={from} replace />;
   }
 

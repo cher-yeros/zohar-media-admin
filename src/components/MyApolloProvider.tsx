@@ -1,18 +1,18 @@
 import { useAppSelector } from "@/redux/hooks";
-import { setApolloClient } from "@/redux/slices/authSlice";
 import {
   ApolloClient,
   ApolloProvider,
   InMemoryCache,
   createHttpLink,
 } from "@apollo/client";
-import { useEffect, useMemo, useRef } from "react";
-import { Outlet } from "react-router-dom";
+import { useMemo, ReactNode } from "react";
 
-export default function MyApolloProvider() {
+interface MyApolloProviderProps {
+  children: ReactNode;
+}
+
+export default function MyApolloProvider({ children }: MyApolloProviderProps) {
   const { token } = useAppSelector((state) => state.auth);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const apolloClientRef = useRef<ApolloClient<any> | null>(null);
 
   const apolloClient = useMemo(() => {
     const httpLink = createHttpLink({
@@ -34,15 +34,7 @@ export default function MyApolloProvider() {
       },
       connectToDevTools: true,
     });
-  }, [token]);
-
-  // Set Apollo client in authSlice
-  useEffect(() => {
-    if (!apolloClientRef.current) {
-      setApolloClient(apolloClient);
-      apolloClientRef.current = apolloClient;
-    }
-  }, [apolloClient]);
+  }, []);
 
   //   const wsLink = new GraphQLWsLink(
   //     createClient({
@@ -66,9 +58,5 @@ export default function MyApolloProvider() {
   //   );
 
   //   apolloClient.setLink(splitLink);
-  return (
-    <ApolloProvider client={apolloClient}>
-      <Outlet />
-    </ApolloProvider>
-  );
+  return <ApolloProvider client={apolloClient}>{children}</ApolloProvider>;
 }

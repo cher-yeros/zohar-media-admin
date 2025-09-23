@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -6,16 +7,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -26,31 +17,44 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Plus,
-  Edit,
-  Trash2,
-  Tag,
-  Palette,
-  Calendar,
-  Hash,
-  Search,
-  Filter,
-} from "lucide-react";
-import {
-  samplePortfolioCategories,
-  samplePortfolioItems,
-  PortfolioCategory,
-} from "@/data/sample-data";
-import { formatDate } from "@/lib/utils";
 import { Loading } from "@/components/ui/loading";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { GET_PORTFOLIO_CATEGORIES } from "@/lib/graphql/queries";
+import {
+  CREATE_PORTFOLIO_CATEGORY,
+  UPDATE_PORTFOLIO_CATEGORY,
+  DELETE_PORTFOLIO_CATEGORY,
+} from "@/lib/graphql/mutations";
+import {
+  PortfolioCategory,
+  PortfolioCategoryFormData,
+  CreatePortfolioCategoryInput,
+  UpdatePortfolioCategoryInput,
+} from "@/lib/types/portfolio";
+import { formatDate } from "@/lib/utils";
+import { useQuery, useMutation } from "@apollo/client";
+import {
+  Calendar,
+  Edit,
+  Filter,
+  Hash,
+  Plus,
+  Search,
+  Tag,
+  Trash2,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 
 export function PortfolioCategories() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [categories, setCategories] = useState<PortfolioCategory[]>([]);
-  const [portfolioItems, setPortfolioItems] = useState(samplePortfolioItems);
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -59,39 +63,64 @@ export function PortfolioCategories() {
   const { toast } = useToast();
 
   // Form state
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<PortfolioCategoryFormData>({
     name: "",
     description: "",
     color: "#3B82F6",
   });
 
-  // Simulate loading state
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-      setCategories(samplePortfolioCategories);
-    }, 1000);
+  // Apollo Client queries
+  const {
+    data: categoriesData,
+    loading: categoriesLoading,
+    refetch: refetchCategories,
+  } = useQuery(GET_PORTFOLIO_CATEGORIES);
 
-    return () => clearTimeout(timer);
-  }, []);
+  // Apollo Client mutations
+  const [createPortfolioCategory] = useMutation(CREATE_PORTFOLIO_CATEGORY);
+  const [updatePortfolioCategory] = useMutation(UPDATE_PORTFOLIO_CATEGORY);
+  const [deletePortfolioCategory] = useMutation(DELETE_PORTFOLIO_CATEGORY);
 
-  const handleAddCategory = () => {
-    const newCategory: PortfolioCategory = {
-      id: (categories.length + 1).toString(),
-      name: formData.name,
-      description: formData.description,
-      color: formData.color,
-      createdAt: new Date(),
-      projectCount: 0,
-    };
+  const categories = categoriesData?.portfolioCategories || [];
+  const isLoading = categoriesLoading;
 
-    setCategories([...categories, newCategory]);
-    setIsAddDialogOpen(false);
-    resetForm();
-    toast({
-      title: "Category added",
-      description: `${formData.name} has been added to the categories.`,
-    });
+  const handleAddCategory = async () => {
+    try {
+      const input: CreatePortfolioCategoryInput = {
+        name: formData.name,
+        description: formData.description || null,
+        color: formData.color,
+      };
+
+      const result = await createPortfolioCategory({
+        variables: input,
+      });
+
+      if (result.data?.createPortfolioCategory?.success) {
+        setIsAddDialogOpen(false);
+        resetForm();
+        refetchCategories();
+        toast({
+          title: "Category added",
+          description: `${formData.name} has been added to categories.`,
+        });
+      } else {
+        throw new Error(
+          result.data?.createPortfolioCategory?.message ||
+            "Failed to create portfolio category"
+        );
+      }
+    } catch (error) {
+      console.error("Error creating portfolio category:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to add category. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleEditCategory = (category: PortfolioCategory) => {
@@ -104,50 +133,78 @@ export function PortfolioCategories() {
     setIsEditDialogOpen(true);
   };
 
-  const handleUpdateCategory = () => {
+  const handleUpdateCategory = async () => {
     if (!editingCategory) return;
 
-    const updatedCategories = categories.map((category) =>
-      category.id === editingCategory.id
-        ? {
-            ...category,
-            ...formData,
-          }
-        : category
-    );
+    try {
+      const input: UpdatePortfolioCategoryInput = {
+        id: editingCategory.id,
+        name: formData.name,
+        description: formData.description || null,
+        color: formData.color,
+      };
 
-    setCategories(updatedCategories);
-    setIsEditDialogOpen(false);
-    setEditingCategory(null);
-    resetForm();
-    toast({
-      title: "Category updated",
-      description: `${formData.name} has been updated.`,
-    });
-  };
+      const result = await updatePortfolioCategory({
+        variables: input,
+      });
 
-  const handleDeleteCategory = (categoryId: string) => {
-    // Check if category has projects
-    const projectsInCategory = portfolioItems.filter(
-      (item) => item.categoryId === categoryId
-    );
-    if (projectsInCategory.length > 0) {
+      if (result.data?.updatePortfolioCategory?.success) {
+        setIsEditDialogOpen(false);
+        setEditingCategory(null);
+        resetForm();
+        refetchCategories();
+        toast({
+          title: "Category updated",
+          description: `${formData.name} has been updated.`,
+        });
+      } else {
+        throw new Error(
+          result.data?.updatePortfolioCategory?.message ||
+            "Failed to update portfolio category"
+        );
+      }
+    } catch (error) {
+      console.error("Error updating portfolio category:", error);
       toast({
-        title: "Cannot delete category",
-        description: `This category has ${projectsInCategory.length} project(s). Please reassign or delete the projects first.`,
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to update category. Please try again.",
         variant: "destructive",
       });
-      return;
     }
+  };
 
-    const updatedCategories = categories.filter(
-      (category) => category.id !== categoryId
-    );
-    setCategories(updatedCategories);
-    toast({
-      title: "Category removed",
-      description: "The category has been removed.",
-    });
+  const handleDeleteCategory = async (categoryId: string) => {
+    try {
+      const result = await deletePortfolioCategory({
+        variables: { id: categoryId },
+      });
+
+      if (result.data?.deletePortfolioCategory?.success) {
+        refetchCategories();
+        toast({
+          title: "Category removed",
+          description: "The category has been removed.",
+        });
+      } else {
+        throw new Error(
+          result.data?.deletePortfolioCategory?.message ||
+            "Failed to delete portfolio category"
+        );
+      }
+    } catch (error) {
+      console.error("Error deleting portfolio category:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to delete category. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const resetForm = () => {
@@ -166,8 +223,8 @@ export function PortfolioCategories() {
   });
 
   const getProjectCount = (categoryId: string) => {
-    return portfolioItems.filter((item) => item.categoryId === categoryId)
-      .length;
+    const category = categories.find((cat) => cat.id === categoryId);
+    return category?.portfolio_items?.length || 0;
   };
 
   if (isLoading) {
@@ -248,7 +305,9 @@ export function PortfolioCategories() {
           <CardContent>
             <div className="text-2xl font-bold">
               {categories.length > 0
-                ? Math.max(...categories.map((c) => c.projectCount))
+                ? Math.max(
+                    ...categories.map((c) => c.portfolio_items?.length || 0)
+                  )
                 : 0}
             </div>
             <p className="text-xs text-muted-foreground">
