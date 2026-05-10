@@ -438,3 +438,18 @@ export const GET_ACTIVITY_LOGS = gql`
     }
   }
 `;
+
+// Homepage photo gallery (admin CRUD + ordering)
+export const GET_GALLERY_PHOTOS_ADMIN = gql`
+  query GetGalleryPhotosAdmin {
+    galleryPhotosAdmin {
+      id
+      image_url
+      alt_text
+      sort_order
+      is_published
+      createdAt
+      updated_at
+    }
+  }
+`;

@@ -83,6 +83,20 @@ export function Sidebar() {
   const dispatch = useAppDispatch();
   const { currentUser } = useAppSelector((state) => state.auth);
 
+  const displayName =
+    [currentUser?.first_name, currentUser?.last_name]
+      .filter(Boolean)
+      .join(" ")
+      .trim() ||
+    currentUser?.email ||
+    "User";
+
+  const avatarInitial = (
+    currentUser?.first_name?.charAt(0) ||
+    currentUser?.email?.charAt(0) ||
+    "?"
+  ).toUpperCase();
+
   const handleLogout = () => {
     dispatch(logoutUser());
   };
@@ -108,7 +122,7 @@ export function Sidebar() {
                 "flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 hover:bg-accent hover:text-accent-foreground",
                 isActive
                   ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground"
+                  : "text-muted-foreground",
               )}
             >
               <item.icon className="h-5 w-5" />
@@ -147,18 +161,18 @@ export function Sidebar() {
                     {currentUser.avatar_url ? (
                       <img
                         src={currentUser.avatar_url}
-                        alt={`${currentUser.first_name} ${currentUser.last_name}`}
+                        alt={displayName}
                         className="h-8 w-8 rounded-full object-cover"
                       />
                     ) : (
                       <span className="text-sm font-medium text-primary">
-                        {currentUser.first_name.charAt(0)}
+                        {avatarInitial}
                       </span>
                     )}
                   </div>
                   <div className="flex-1 min-w-0 text-left">
                     <p className="text-sm font-medium truncate">
-                      {currentUser.first_name} {currentUser.last_name}
+                      {displayName}
                     </p>
                     <p className="text-xs text-muted-foreground truncate">
                       {currentUser.email}
@@ -171,7 +185,7 @@ export function Sidebar() {
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium leading-none">
-                    {currentUser.first_name} {currentUser.last_name}
+                    {displayName}
                   </p>
                   <p className="text-xs leading-none text-muted-foreground">
                     {currentUser.email}

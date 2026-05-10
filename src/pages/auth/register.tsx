@@ -69,7 +69,12 @@ export function Register() {
     try {
       const result = await createUser({
         variables: {
-          input: data,
+          email: data.email,
+          password: data.password,
+          first_name: data.first_name,
+          last_name: data.last_name,
+          role: data.role,
+          avatar_url: data.avatar_url || undefined,
         },
       });
 
@@ -82,7 +87,7 @@ export function Register() {
         navigate("/login");
       } else {
         setError(
-          result.data?.createUser?.message || "Failed to create account"
+          result.data?.createUser?.message || "Failed to create account",
         );
       }
     } catch (error) {

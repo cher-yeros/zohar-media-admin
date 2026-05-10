@@ -115,13 +115,11 @@ export function AddMedia({ onMediaAdded }: AddMediaProps) {
 
       const result = await createMediaItem({
         variables: {
-          input: {
-            title: data.title,
-            type: "VIDEO",
-            url: data.youtubeUrl,
-            thumbnail_url: `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`,
-            tags: tags.map((tag) => ({ tag_name: tag })),
-          },
+          title: data.title,
+          type: "VIDEO",
+          url: data.youtubeUrl,
+          thumbnail_url: `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`,
+          tags: tags.length > 0 ? tags : undefined,
         },
       });
 
@@ -142,7 +140,8 @@ export function AddMedia({ onMediaAdded }: AddMediaProps) {
         setOpen(false);
       } else {
         throw new Error(
-          result.data?.createMediaItem?.message || "Failed to create media item"
+          result.data?.createMediaItem?.message ||
+            "Failed to create media item",
         );
       }
     } catch (error) {

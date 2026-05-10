@@ -59,18 +59,15 @@ export function AddTestimony({ onTestimonyAdded }: AddTestimonyProps) {
     try {
       const result = await createTestimonial({
         variables: {
-          input: {
-            name: data.name,
-            company: data.company,
-            message: data.message,
-            rating: data.rating,
-            testimonial_date: new Date().toISOString(),
-            status: "PENDING",
-            featured: false,
-            avatar_url:
-              avatarUrl ||
-              `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=random`,
-          },
+          name: data.name,
+          company: data.company || undefined,
+          message: data.message,
+          rating: data.rating,
+          testimonial_date: new Date().toISOString(),
+          portfolio_item_id: undefined,
+          avatar_url:
+            avatarUrl ||
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=random`,
         },
       });
 
@@ -91,7 +88,7 @@ export function AddTestimony({ onTestimonyAdded }: AddTestimonyProps) {
       } else {
         throw new Error(
           result.data?.createTestimonial?.message ||
-            "Failed to create testimonial"
+            "Failed to create testimonial",
         );
       }
     } catch (error) {

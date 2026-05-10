@@ -56,9 +56,11 @@ const authSlice = createSlice({
     clearError() {
       // No state changes needed for clear error
     },
-    logoutUser() {
-      // This action can be used to trigger logout logic
-      // The actual state clearing is handled by logoutFinished
+    logoutUser(state) {
+      state.currentUser = null;
+      state.credential = {};
+      state.avatar = null;
+      state.token = null;
     },
   },
 });

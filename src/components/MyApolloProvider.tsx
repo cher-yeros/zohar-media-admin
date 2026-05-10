@@ -1,10 +1,12 @@
-import { useAppSelector } from "@/redux/hooks";
+import { store } from "@/redux/store";
 import {
   ApolloClient,
   ApolloProvider,
   InMemoryCache,
   createHttpLink,
+  from,
 } from "@apollo/client";
+import { setContext } from "@apollo/client/link/context";
 import { useMemo, ReactNode } from "react";
 
 interface MyApolloProviderProps {
@@ -12,19 +14,24 @@ interface MyApolloProviderProps {
 }
 
 export default function MyApolloProvider({ children }: MyApolloProviderProps) {
-  const { token } = useAppSelector((state) => state.auth);
-
   const apolloClient = useMemo(() => {
+    const authLink = setContext((_, { headers }) => {
+      const token = store.getState().auth.token;
+      return {
+        headers: {
+          ...headers,
+          authorization: token ? `Bearer ${token}` : "",
+        },
+      };
+    });
+
     const httpLink = createHttpLink({
-      uri: "http://localhost:4000/graphql",
+      uri: import.meta.env.VITE_GRAPHQL_URL ?? "http://localhost:4000/graphql",
       credentials: "include",
-      headers: {
-        authorization: token ? `Bearer ${token}` : "",
-      },
     });
 
     return new ApolloClient({
-      link: httpLink,
+      link: from([authLink, httpLink]),
       cache: new InMemoryCache(),
 
       defaultOptions: {

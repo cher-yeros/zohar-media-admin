@@ -22,14 +22,21 @@ export const LOGIN_USER = gql`
 `;
 
 export const CREATE_USER = gql`
-  mutation CreateUser($input: CreateUserInput!) {
+  mutation CreateUser(
+    $email: String!
+    $password: String!
+    $first_name: String!
+    $last_name: String!
+    $role: UserRole
+    $avatar_url: String
+  ) {
     createUser(
-      email: $input.email
-      password: $input.password
-      first_name: $input.first_name
-      last_name: $input.last_name
-      role: $input.role
-      avatar_url: $input.avatar_url
+      email: $email
+      password: $password
+      first_name: $first_name
+      last_name: $last_name
+      role: $role
+      avatar_url: $avatar_url
     ) {
       success
       message
@@ -48,15 +55,23 @@ export const CREATE_USER = gql`
 `;
 
 export const UPDATE_USER = gql`
-  mutation UpdateUser($id: ID!, $input: UpdateUserInput!) {
+  mutation UpdateUser(
+    $id: ID!
+    $email: String
+    $first_name: String
+    $last_name: String
+    $role: UserRole
+    $avatar_url: String
+    $is_active: Boolean
+  ) {
     updateUser(
       id: $id
-      email: $input.email
-      first_name: $input.first_name
-      last_name: $input.last_name
-      role: $input.role
-      avatar_url: $input.avatar_url
-      is_active: $input.is_active
+      email: $email
+      first_name: $first_name
+      last_name: $last_name
+      role: $role
+      avatar_url: $avatar_url
+      is_active: $is_active
     ) {
       success
       message
@@ -446,13 +461,19 @@ export const DELETE_PORTFOLIO_CATEGORY = gql`
 
 // Inquiry Mutations
 export const CREATE_INQUIRY = gql`
-  mutation CreateInquiry($input: CreateInquiryInput!) {
+  mutation CreateInquiry(
+    $name: String!
+    $email: String!
+    $subject: String!
+    $message: String!
+    $type: InquiryType
+  ) {
     createInquiry(
-      name: $input.name
-      email: $input.email
-      subject: $input.subject
-      message: $input.message
-      type: $input.type
+      name: $name
+      email: $email
+      subject: $subject
+      message: $message
+      type: $type
     ) {
       success
       message
@@ -471,12 +492,17 @@ export const CREATE_INQUIRY = gql`
 `;
 
 export const UPDATE_INQUIRY = gql`
-  mutation UpdateInquiry($id: ID!, $input: UpdateInquiryInput!) {
+  mutation UpdateInquiry(
+    $id: ID!
+    $status: InquiryStatus
+    $assigned_to: ID
+    $response: String
+  ) {
     updateInquiry(
       id: $id
-      status: $input.status
-      assigned_to: $input.assigned_to
-      response: $input.response
+      status: $status
+      assigned_to: $assigned_to
+      response: $response
     ) {
       success
       message
@@ -504,17 +530,23 @@ export const UPDATE_INQUIRY = gql`
 
 // Testimonial Mutations
 export const CREATE_TESTIMONIAL = gql`
-  mutation CreateTestimonial($input: CreateTestimonialInput!) {
+  mutation CreateTestimonial(
+    $name: String!
+    $company: String
+    $message: String!
+    $rating: Int
+    $testimonial_date: String!
+    $portfolio_item_id: ID
+    $avatar_url: String
+  ) {
     createTestimonial(
-      name: $input.name
-      company: $input.company
-      message: $input.message
-      rating: $input.rating
-      testimonial_date: $input.testimonial_date
-      status: $input.status
-      featured: $input.featured
-      avatar_url: $input.avatar_url
-      portfolio_item_id: $input.portfolio_item_id
+      name: $name
+      company: $company
+      message: $message
+      rating: $rating
+      testimonial_date: $testimonial_date
+      portfolio_item_id: $portfolio_item_id
+      avatar_url: $avatar_url
     ) {
       success
       message
@@ -539,17 +571,29 @@ export const CREATE_TESTIMONIAL = gql`
 `;
 
 export const UPDATE_TESTIMONIAL = gql`
-  mutation UpdateTestimonial($id: ID!, $input: UpdateTestimonialInput!) {
+  mutation UpdateTestimonial(
+    $id: ID!
+    $name: String
+    $company: String
+    $message: String
+    $rating: Int
+    $testimonial_date: String
+    $status: TestimonialStatus
+    $featured: Boolean
+    $portfolio_item_id: ID
+    $avatar_url: String
+  ) {
     updateTestimonial(
       id: $id
-      name: $input.name
-      company: $input.company
-      message: $input.message
-      rating: $input.rating
-      status: $input.status
-      featured: $input.featured
-      avatar_url: $input.avatar_url
-      portfolio_item_id: $input.portfolio_item_id
+      name: $name
+      company: $company
+      message: $message
+      rating: $rating
+      testimonial_date: $testimonial_date
+      status: $status
+      featured: $featured
+      avatar_url: $avatar_url
+      portfolio_item_id: $portfolio_item_id
     ) {
       success
       message
@@ -575,16 +619,25 @@ export const UPDATE_TESTIMONIAL = gql`
 
 // Media Mutations
 export const CREATE_MEDIA_ITEM = gql`
-  mutation CreateMediaItem($input: CreateMediaItemInput!) {
+  mutation CreateMediaItem(
+    $title: String!
+    $type: MediaType!
+    $url: String!
+    $thumbnail_url: String
+    $file_size: String
+    $dimensions: String
+    $duration: String
+    $tags: [String!]
+  ) {
     createMediaItem(
-      title: $input.title
-      type: $input.type
-      url: $input.url
-      thumbnail_url: $input.thumbnail_url
-      file_size: $input.file_size
-      dimensions: $input.dimensions
-      duration: $input.duration
-      tags: $input.tags
+      title: $title
+      type: $type
+      url: $url
+      thumbnail_url: $thumbnail_url
+      file_size: $file_size
+      dimensions: $dimensions
+      duration: $duration
+      tags: $tags
     ) {
       success
       message
@@ -607,20 +660,91 @@ export const CREATE_MEDIA_ITEM = gql`
   }
 `;
 
-// System Mutations
-export const UPDATE_SYSTEM_SETTINGS = gql`
-  mutation UpdateSystemSettings($input: UpdateSystemSettingsInput!) {
-    updateSystemSettings(
-      business_name: $input.business_name
-      business_description: $input.business_description
-      industry: $input.industry
-      website_url: $input.website_url
-      contact_email: $input.contact_email
-      theme: $input.theme
+// Homepage gallery (portfolio site Photo Gallery section)
+export const CREATE_GALLERY_PHOTO = gql`
+  mutation CreateGalleryPhoto(
+    $image_url: String!
+    $alt_text: String
+    $sort_order: Int
+    $is_published: Boolean
+  ) {
+    createGalleryPhoto(
+      image_url: $image_url
+      alt_text: $alt_text
+      sort_order: $sort_order
+      is_published: $is_published
     ) {
       success
       message
-      systemSettings {
+      galleryPhoto {
+        id
+        image_url
+        alt_text
+        sort_order
+        is_published
+      }
+    }
+  }
+`;
+
+export const UPDATE_GALLERY_PHOTO = gql`
+  mutation UpdateGalleryPhoto(
+    $id: ID!
+    $image_url: String
+    $alt_text: String
+    $sort_order: Int
+    $is_published: Boolean
+  ) {
+    updateGalleryPhoto(
+      id: $id
+      image_url: $image_url
+      alt_text: $alt_text
+      sort_order: $sort_order
+      is_published: $is_published
+    ) {
+      success
+      message
+      galleryPhoto {
+        id
+        image_url
+        alt_text
+        sort_order
+        is_published
+      }
+    }
+  }
+`;
+
+export const DELETE_GALLERY_PHOTO = gql`
+  mutation DeleteGalleryPhoto($id: ID!) {
+    deleteGalleryPhoto(id: $id) {
+      success
+      message
+    }
+  }
+`;
+
+// System Mutations
+export const UPDATE_SYSTEM_SETTINGS = gql`
+  mutation UpdateSystemSettings(
+    $business_name: String
+    $business_description: String
+    $industry: String
+    $website_url: String
+    $contact_email: String
+    $theme: Theme
+  ) {
+    updateSystemSettings(
+      business_name: $business_name
+      business_description: $business_description
+      industry: $industry
+      website_url: $website_url
+      contact_email: $contact_email
+      theme: $theme
+    ) {
+      success
+      message
+      settings {
         id
         business_name
         business_description

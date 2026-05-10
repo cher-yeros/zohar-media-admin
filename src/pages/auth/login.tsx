@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { useMutation, gql } from "@apollo/client";
+import { ApolloError, useMutation } from "@apollo/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,27 +23,36 @@ import {
   loginError,
   clearError,
 } from "@/redux/slices/authSlice";
+import { LOGIN_USER } from "@/lib/graphql/mutations";
+import { User, UserRole } from "@/lib/types/api";
 
-// GraphQL mutation for login
-const LOGIN_USER = gql`
-  mutation LoginUser($email: String!, $password: String!) {
-    loginUser(email: $email, password: $password) {
-      success
-      message
-      token
-      user {
-        id
-        email
-        first_name
-        last_name
-        role
-        avatar_url
-        is_active
-        last_login_at
-      }
-    }
-  }
-`;
+function normalizeAuthUser(u: {
+  id: string | number;
+  email: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  role: string;
+  avatar_url?: string | null;
+  is_active: boolean;
+  last_login_at?: string | null;
+  createdAt?: string | null;
+  updated_at?: string | null;
+  updatedAt?: string | null;
+}): User {
+  const now = new Date().toISOString();
+  return {
+    id: String(u.id),
+    email: u.email,
+    first_name: u.first_name ?? "",
+    last_name: u.last_name ?? "",
+    role: u.role as UserRole,
+    avatar_url: u.avatar_url ?? undefined,
+    is_active: u.is_active,
+    last_login_at: u.last_login_at ?? undefined,
+    createdAt: u.createdAt ?? now,
+    updated_at: u.updated_at ?? u.updatedAt ?? now,
+  };
+}
 
 export function Login() {
   const [showPassword, setShowPassword] = useState(false);
@@ -51,7 +60,7 @@ export function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useAppDispatch();
-  const { currentUser } = useAppSelector((state) => state.auth);
+  const { currentUser, token } = useAppSelector((state) => state.auth);
 
   const from =
     (location.state as { from?: { pathname: string } })?.from?.pathname || "/";
