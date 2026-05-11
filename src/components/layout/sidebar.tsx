@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
+import { ADMIN_DASHBOARD_TAGLINE, LOGO_PATH, SITE_NAME } from "@/lib/branding";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -80,15 +81,24 @@ export function Sidebar() {
   return (
     <aside className="flex h-full w-72 shrink-0 flex-col border-r bg-card/60 backdrop-blur supports-[backdrop-filter]:bg-card/50">
       {/* Logo */}
-      <div className="flex h-16 items-center justify-between border-b px-5">
-        <div className="min-w-0">
-          <h1 className="truncate text-lg font-semibold tracking-tight">
-            Zohar Admin
-          </h1>
-          <p className="truncate text-xs text-muted-foreground">
-            Zohar Media dashboard
-          </p>
-        </div>
+      <div className="flex h-16 items-center border-b px-5">
+        <Link to="/" className="flex min-w-0 items-center gap-3">
+          <img
+            src={LOGO_PATH}
+            alt=""
+            width={36}
+            height={36}
+            className="h-9 w-9 shrink-0 rounded-md object-contain"
+          />
+          <div className="min-w-0">
+            <h1 className="truncate text-lg font-semibold tracking-tight">
+              {SITE_NAME}
+            </h1>
+            <p className="truncate text-xs text-muted-foreground">
+              {ADMIN_DASHBOARD_TAGLINE}
+            </p>
+          </div>
+        </Link>
       </div>
 
       {/* Navigation */}

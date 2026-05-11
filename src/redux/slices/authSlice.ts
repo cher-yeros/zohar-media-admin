@@ -1,4 +1,4 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { User } from "@/lib/types/api";
 
 interface AuthState {
@@ -23,9 +23,7 @@ const authSlice = createSlice({
       // No state changes needed for login started
     },
     loginFinished(state, action) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       state.currentUser = action.payload.user;
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       state.token = action.payload.token;
     },
     loginError() {
@@ -44,7 +42,6 @@ const authSlice = createSlice({
       // No state changes needed for logout error
     },
     addAvatar(state, action) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       state.avatar = action.payload;
     },
     setFirstTime(state) {
@@ -62,6 +59,10 @@ const authSlice = createSlice({
       state.avatar = null;
       state.token = null;
     },
+    patchCurrentUser(state, action: PayloadAction<Partial<User>>) {
+      if (!state.currentUser) return;
+      state.currentUser = { ...state.currentUser, ...action.payload };
+    },
   },
 });
 
@@ -76,6 +77,7 @@ export const {
   setFirstTime,
   clearError,
   logoutUser,
+  patchCurrentUser,
 } = authSlice.actions;
 
 export default authSlice.reducer;

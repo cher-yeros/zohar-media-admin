@@ -1,10 +1,5 @@
-import { useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { useMemo, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -24,21 +19,58 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Search, Plus, Check, X, Star, Heart, Eye } from "lucide-react";
-import { sampleTestimonials, Testimonial } from "@/data/sample-data";
+import { Loading } from "@/components/ui/loading";
+import { useToast } from "@/hooks/use-toast";
+import {
+  DELETE_TESTIMONIAL,
+  UPDATE_TESTIMONIAL,
+} from "@/lib/graphql/mutations";
+import { GET_TESTIMONIALS } from "@/lib/graphql/queries";
 import { formatDate } from "@/lib/utils";
 import { AddTestimony } from "@/components/forms/add-testimony";
+import { useMutation, useQuery } from "@apollo/client";
+
+type TestimonialStatus = "PENDING" | "APPROVED" | "REJECTED";
+type Testimonial = {
+  id: string;
+  name: string;
+  company?: string | null;
+  message: string;
+  rating?: number | null;
+  testimonial_date: string;
+  status: TestimonialStatus;
+  featured: boolean;
+  avatar_url?: string | null;
+};
 
 export function Testimonials() {
-  const [testimonials, setTestimonials] = useState(sampleTestimonials);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedTestimonial, setSelectedTestimonial] =
     useState<Testimonial | null>(null);
+  const { toast } = useToast();
+
+  const {
+    data,
+    loading,
+    refetch: refetchTestimonials,
+  } = useQuery(GET_TESTIMONIALS, {
+    variables: { limit: 200, offset: 0 },
+  });
+
+  const [updateTestimonial, { loading: updating }] =
+    useMutation(UPDATE_TESTIMONIAL);
+  const [deleteTestimonial, { loading: deleting }] =
+    useMutation(DELETE_TESTIMONIAL);
+
+  const testimonials: Testimonial[] = data?.testimonials?.items ?? [];
 
   const filteredTestimonials = testimonials.filter((testimonial) => {
     const matchesSearch =
       testimonial.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      testimonial.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (testimonial.company ?? "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
       testimonial.message.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus =
       statusFilter === "all" || testimonial.status === statusFilter;
@@ -46,52 +78,70 @@ export function Testimonials() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleApprove = (testimonialId: string) => {
-    setTestimonials((prev) =>
-      prev.map((testimonial) =>
-        testimonial.id === testimonialId
-          ? { ...testimonial, status: "approved" as const }
-          : testimonial
-      )
-    );
+  const patchTestimonial = async (
+    testimonialId: string,
+    patch: Partial<Pick<Testimonial, "status" | "featured">>,
+  ) => {
+    try {
+      const result = await updateTestimonial({
+        variables: {
+          id: testimonialId,
+          ...(patch.status ? { status: patch.status } : {}),
+          ...(patch.featured !== undefined ? { featured: patch.featured } : {}),
+        },
+      });
+
+      if (result.data?.updateTestimonial?.success) {
+        await refetchTestimonials();
+      } else {
+        throw new Error(
+          result.data?.updateTestimonial?.message ?? "Failed to update",
+        );
+      }
+    } catch (e) {
+      toast({
+        title: "Error",
+        description: e instanceof Error ? e.message : "Failed to update",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleReject = (testimonialId: string) => {
-    setTestimonials((prev) =>
-      prev.map((testimonial) =>
-        testimonial.id === testimonialId
-          ? { ...testimonial, status: "rejected" as const }
-          : testimonial
-      )
-    );
-  };
+  const handleApprove = (testimonialId: string) =>
+    patchTestimonial(testimonialId, { status: "APPROVED" });
 
-  const handleToggleFeatured = (testimonialId: string) => {
-    setTestimonials((prev) =>
-      prev.map((testimonial) =>
-        testimonial.id === testimonialId
-          ? { ...testimonial, featured: !testimonial.featured }
-          : testimonial
-      )
-    );
-  };
+  const handleReject = (testimonialId: string) =>
+    patchTestimonial(testimonialId, { status: "REJECTED" });
 
-  const handleTestimonyAdded = (newTestimony: Testimonial) => {
-    setTestimonials((prev) => [newTestimony, ...prev]);
+  const handleToggleFeatured = (testimonialId: string, current: boolean) =>
+    patchTestimonial(testimonialId, { featured: !current });
+
+  const handleTestimonyAdded = (_newTestimony: Testimonial) => {
+    // new testimony arrives via mutation, but we still refetch to keep list consistent
+    refetchTestimonials();
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "pending":
+      case "PENDING":
         return "default";
-      case "approved":
+      case "APPROVED":
         return "secondary";
-      case "rejected":
+      case "REJECTED":
         return "destructive";
       default:
         return "outline";
     }
   };
+
+  const stats = useMemo(() => {
+    return {
+      total: testimonials.length,
+      pending: testimonials.filter((t) => t.status === "PENDING").length,
+      approved: testimonials.filter((t) => t.status === "APPROVED").length,
+      featured: testimonials.filter((t) => t.featured).length,
+    };
+  }, [testimonials]);
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
@@ -105,6 +155,32 @@ export function Testimonials() {
       />
     ));
   };
+
+  const handleDelete = async (testimonialId: string) => {
+    try {
+      const result = await deleteTestimonial({
+        variables: { id: testimonialId },
+      });
+      if (result.data?.deleteTestimonial?.success) {
+        await refetchTestimonials();
+        toast({ title: "Deleted", description: "Testimonial removed." });
+      } else {
+        throw new Error(
+          result.data?.deleteTestimonial?.message ?? "Failed to delete",
+        );
+      }
+    } catch (e) {
+      toast({
+        title: "Error",
+        description: e instanceof Error ? e.message : "Failed to delete",
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (loading) {
+    return <Loading type="page" />;
+  }
 
   return (
     <div className="space-y-6 fade-in">
@@ -128,7 +204,7 @@ export function Testimonials() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{testimonials.length}</div>
+            <div className="text-2xl font-bold">{stats.total}</div>
           </CardContent>
         </Card>
         <Card>
@@ -137,7 +213,7 @@ export function Testimonials() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">
-              {testimonials.filter((t) => t.status === "pending").length}
+              {stats.pending}
             </div>
           </CardContent>
         </Card>
@@ -147,7 +223,7 @@ export function Testimonials() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {testimonials.filter((t) => t.status === "approved").length}
+              {stats.approved}
             </div>
           </CardContent>
         </Card>
@@ -157,7 +233,7 @@ export function Testimonials() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-600">
-              {testimonials.filter((t) => t.featured).length}
+              {stats.featured}
             </div>
           </CardContent>
         </Card>
@@ -187,9 +263,9 @@ export function Testimonials() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="PENDING">Pending</SelectItem>
+                <SelectItem value="APPROVED">Approved</SelectItem>
+                <SelectItem value="REJECTED">Rejected</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -203,9 +279,9 @@ export function Testimonials() {
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-center space-x-3">
-                  {testimonial.avatar ? (
+                  {testimonial.avatar_url ? (
                     <img
-                      src={testimonial.avatar}
+                      src={testimonial.avatar_url}
                       alt={testimonial.name}
                       className="h-10 w-10 rounded-full object-cover"
                     />
@@ -221,7 +297,7 @@ export function Testimonials() {
                       {testimonial.name}
                     </h3>
                     <p className="text-xs text-muted-foreground">
-                      {testimonial.company}
+                      {testimonial.company ?? "—"}
                     </p>
                   </div>
                 </div>
@@ -235,9 +311,9 @@ export function Testimonials() {
                 </div>
               </div>
               <div className="flex items-center space-x-1">
-                {renderStars(testimonial.rating)}
+                {renderStars(testimonial.rating ?? 0)}
                 <span className="text-sm text-muted-foreground ml-2">
-                  {testimonial.rating}/5
+                  {testimonial.rating ?? 0}/5
                 </span>
               </div>
             </CardHeader>
@@ -247,7 +323,7 @@ export function Testimonials() {
               </p>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">
-                  {formatDate(testimonial.date)}
+                  {formatDate(testimonial.testimonial_date)}
                 </span>
                 <div className="flex items-center space-x-1">
                   <Dialog>
@@ -265,15 +341,15 @@ export function Testimonials() {
                         <DialogTitle>Testimonial Details</DialogTitle>
                         <DialogDescription>
                           From {selectedTestimonial?.name} at{" "}
-                          {selectedTestimonial?.company}
+                          {selectedTestimonial?.company ?? "—"}
                         </DialogDescription>
                       </DialogHeader>
                       {selectedTestimonial && (
                         <div className="space-y-4">
                           <div className="flex items-center space-x-4">
-                            {selectedTestimonial.avatar ? (
+                            {selectedTestimonial.avatar_url ? (
                               <img
-                                src={selectedTestimonial.avatar}
+                                src={selectedTestimonial.avatar_url}
                                 alt={selectedTestimonial.name}
                                 className="h-16 w-16 rounded-full object-cover"
                               />
@@ -289,10 +365,10 @@ export function Testimonials() {
                                 {selectedTestimonial.name}
                               </h3>
                               <p className="text-muted-foreground">
-                                {selectedTestimonial.company}
+                                {selectedTestimonial.company ?? "—"}
                               </p>
                               <div className="flex items-center space-x-1 mt-1">
-                                {renderStars(selectedTestimonial.rating)}
+                                {renderStars(selectedTestimonial.rating ?? 0)}
                               </div>
                             </div>
                           </div>
@@ -311,7 +387,7 @@ export function Testimonials() {
                               </label>
                               <Badge
                                 variant={getStatusColor(
-                                  selectedTestimonial.status
+                                  selectedTestimonial.status,
                                 )}
                                 className="mt-1"
                               >
@@ -328,13 +404,14 @@ export function Testimonials() {
                             </div>
                           </div>
                           <div className="flex space-x-2">
-                            {selectedTestimonial.status === "pending" && (
+                            {selectedTestimonial.status === "PENDING" && (
                               <>
                                 <Button
                                   onClick={() =>
                                     handleApprove(selectedTestimonial.id)
                                   }
                                   className="flex-1"
+                                  disabled={updating || deleting}
                                 >
                                   <Check className="h-4 w-4 mr-2" />
                                   Approve
@@ -345,19 +422,24 @@ export function Testimonials() {
                                     handleReject(selectedTestimonial.id)
                                   }
                                   className="flex-1"
+                                  disabled={updating || deleting}
                                 >
                                   <X className="h-4 w-4 mr-2" />
                                   Reject
                                 </Button>
                               </>
                             )}
-                            {selectedTestimonial.status === "approved" && (
+                            {selectedTestimonial.status === "APPROVED" && (
                               <Button
                                 variant="outline"
                                 onClick={() =>
-                                  handleToggleFeatured(selectedTestimonial.id)
+                                  handleToggleFeatured(
+                                    selectedTestimonial.id,
+                                    selectedTestimonial.featured,
+                                  )
                                 }
                                 className="flex-1"
+                                disabled={updating || deleting}
                               >
                                 <Heart className="h-4 w-4 mr-2" />
                                 {selectedTestimonial.featured
@@ -365,17 +447,28 @@ export function Testimonials() {
                                   : "Feature"}
                               </Button>
                             )}
+                            <Button
+                              variant="outline"
+                              onClick={() =>
+                                handleDelete(selectedTestimonial.id)
+                              }
+                              className="flex-1"
+                              disabled={updating || deleting}
+                            >
+                              Delete
+                            </Button>
                           </div>
                         </div>
                       )}
                     </DialogContent>
                   </Dialog>
-                  {testimonial.status === "pending" && (
+                  {testimonial.status === "PENDING" && (
                     <>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handleApprove(testimonial.id)}
+                        disabled={updating || deleting}
                       >
                         <Check className="h-4 w-4 text-green-600" />
                       </Button>
@@ -383,16 +476,23 @@ export function Testimonials() {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleReject(testimonial.id)}
+                        disabled={updating || deleting}
                       >
                         <X className="h-4 w-4 text-red-600" />
                       </Button>
                     </>
                   )}
-                  {testimonial.status === "approved" && (
+                  {testimonial.status === "APPROVED" && (
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleToggleFeatured(testimonial.id)}
+                      onClick={() =>
+                        handleToggleFeatured(
+                          testimonial.id,
+                          testimonial.featured,
+                        )
+                      }
+                      disabled={updating || deleting}
                     >
                       <Heart
                         className={`h-4 w-4 ${testimonial.featured ? "text-red-500 fill-current" : "text-muted-foreground"}`}

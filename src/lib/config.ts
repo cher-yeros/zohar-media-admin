@@ -2,11 +2,19 @@
  * Application configuration
  */
 
+const PRODUCTION_API_ORIGIN = "https://api.zoharmedia.net";
+const DEV_API_ORIGIN = "http://localhost:4000";
+
 export const config = {
-  // API Configuration
+  // API Configuration (env wins; production builds default to api.zoharmedia.net)
   graphqlEndpoint:
-    import.meta.env.VITE_GRAPHQL_ENDPOINT || "http://localhost:4000/graphql",
-  apiBaseUrl: import.meta.env.VITE_API_BASE_URL || "http://localhost:4000",
+    import.meta.env.VITE_GRAPHQL_ENDPOINT ||
+    (import.meta.env.PROD
+      ? `${PRODUCTION_API_ORIGIN}/graphql`
+      : `${DEV_API_ORIGIN}/graphql`),
+  apiBaseUrl:
+    import.meta.env.VITE_API_BASE_URL ||
+    (import.meta.env.PROD ? PRODUCTION_API_ORIGIN : DEV_API_ORIGIN),
 
   // File Upload Configuration
   maxFileSize: 10 * 1024 * 1024, // 10MB

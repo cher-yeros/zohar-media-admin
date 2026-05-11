@@ -4,7 +4,6 @@ export interface TeamMemberSkill {
   id: string;
   skill_name: string;
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface TeamMemberSocialLink {
@@ -12,7 +11,6 @@ export interface TeamMemberSocialLink {
   platform: string;
   url: string;
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface TeamMember {
@@ -26,7 +24,7 @@ export interface TeamMember {
   join_date: string;
   status: string;
   createdAt: string;
-  updatedAt: string;
+  updated_at: string;
   skills: TeamMemberSkill[];
   social_links: TeamMemberSocialLink[];
 }
@@ -48,7 +46,7 @@ export interface CreateTeamMemberInput {
   join_date: string;
   status?: string;
   skills?: string[];
-  social_links?: TeamMemberSocialLinkInput[];
+  social_links?: SocialLinkInput[];
 }
 
 export interface UpdateTeamMemberInput {
@@ -60,13 +58,17 @@ export interface UpdateTeamMemberInput {
   bio?: string;
   status?: string;
   skills?: string[];
-  social_links?: TeamMemberSocialLinkInput[];
+  social_links?: SocialLinkInput[];
 }
 
-export interface TeamMemberSocialLinkInput {
+/** Matches GraphQL `SocialLinkInput` */
+export interface SocialLinkInput {
   platform: string;
   url: string;
 }
+
+/** @deprecated Use SocialLinkInput */
+export type TeamMemberSocialLinkInput = SocialLinkInput;
 
 // Form data types for UI
 export interface TeamMemberFormData {

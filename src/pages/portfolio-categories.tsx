@@ -218,15 +218,19 @@ export function PortfolioCategories() {
     });
   };
 
-  const filteredCategories = categories.filter((category: PortfolioCategory) => {
-    const matchesSearch =
-      category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      category.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
+  const filteredCategories = categories.filter(
+    (category: PortfolioCategory) => {
+      const matchesSearch =
+        category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        category.description?.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesSearch;
+    },
+  );
 
   const getProjectCount = (categoryId: string) => {
-    const category = categories.find((cat: PortfolioCategory) => cat.id === categoryId);
+    const category = categories.find(
+      (cat: PortfolioCategory) => cat.id === categoryId,
+    );
     return category?.portfolio_items?.length || 0;
   };
 

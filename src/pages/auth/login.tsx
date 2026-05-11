@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Eye, EyeOff, Loader2, Mail, Lock } from "lucide-react";
+import { ADMIN_LOGIN_DESCRIPTION, LOGO_PATH, SITE_NAME } from "@/lib/branding";
 import { useToast } from "@/hooks/use-toast";
 import { loginSchema, LoginFormData } from "@/lib/schemas/validation";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -25,35 +26,8 @@ import {
 } from "@/redux/slices/authSlice";
 import { LOGIN_USER } from "@/lib/graphql/mutations";
 import { config } from "@/lib/config";
-import { User, UserRole } from "@/lib/types/api";
-
-function normalizeAuthUser(u: {
-  id: string | number;
-  email: string;
-  first_name?: string | null;
-  last_name?: string | null;
-  role: string;
-  avatar_url?: string | null;
-  is_active: boolean;
-  last_login_at?: string | null;
-  createdAt?: string | null;
-  updated_at?: string | null;
-  updatedAt?: string | null;
-}): User {
-  const now = new Date().toISOString();
-  return {
-    id: String(u.id),
-    email: u.email,
-    first_name: u.first_name ?? "",
-    last_name: u.last_name ?? "",
-    role: u.role as UserRole,
-    avatar_url: u.avatar_url ?? undefined,
-    is_active: u.is_active,
-    last_login_at: u.last_login_at ?? undefined,
-    createdAt: u.createdAt ?? now,
-    updated_at: u.updated_at ?? u.updatedAt ?? now,
-  };
-}
+import { UserRole } from "@/lib/types/api";
+import { normalizeAuthUser } from "@/lib/auth/normalize-auth-user";
 
 export function Login() {
   const [showPassword, setShowPassword] = useState(false);
@@ -85,7 +59,6 @@ export function Login() {
     dispatch(loginStarted());
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const result = await loginMutation({
         variables: {
           email: data.email,
@@ -93,9 +66,7 @@ export function Login() {
         },
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       if (result.data?.loginUser?.success) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
         const { user, token } = result.data.loginUser as {
           user: Parameters<typeof normalizeAuthUser>[0];
           token: string;
@@ -126,7 +97,6 @@ export function Login() {
         navigate(from, { replace: true });
       } else {
         const message =
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           (result.data?.loginUser?.message as string | undefined) ||
           "Invalid email or password.";
         dispatch(loginError());
@@ -155,6 +125,10 @@ export function Login() {
     }
   }, [currentUser, navigate, from]);
 
+  useEffect(() => {
+    document.title = `Sign in | ${SITE_NAME}`;
+  }, []);
+
   const isLoading = mutationLoading;
 
   return (
@@ -162,14 +136,18 @@ export function Login() {
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,hsl(var(--primary)/0.18),transparent_55%),radial-gradient(ellipse_at_bottom,hsl(var(--ring)/0.10),transparent_50%)]" />
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-1">
-          <div className="flex items-center justify-center mb-4">
-            <div className="w-12 h-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shadow-sm">
-              <Lock className="h-6 w-6" />
-            </div>
+          <div className="mb-4 flex items-center justify-center">
+            <img
+              src={LOGO_PATH}
+              alt={SITE_NAME}
+              width={56}
+              height={56}
+              className="h-14 w-14 object-contain"
+            />
           </div>
-          <CardTitle className="text-2xl text-center">Welcome back</CardTitle>
+          <CardTitle className="text-center text-2xl">Welcome back</CardTitle>
           <CardDescription className="text-center">
-            Sign in to your Zohar Media Admin account
+            {ADMIN_LOGIN_DESCRIPTION}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -264,15 +242,6 @@ export function Login() {
               )}
             </Button>
           </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              Don&apos;t have an account?{" "}
-              <Link to="/register" className="text-primary hover:underline">
-                Sign up
-              </Link>
-            </p>
-          </div>
         </CardContent>
       </Card>
     </div>

@@ -14,12 +14,12 @@ import {
   Eye,
   Play,
 } from "lucide-react";
+import { Loading } from "@/components/ui/loading";
 import {
-  sampleAnalytics,
-  visitorData,
-  inquiryTrendData,
-  sampleMedia,
-} from "@/data/sample-data";
+  GET_ANALYTICS_DATA,
+  GET_BUSINESS_STATISTICS,
+  GET_MEDIA_ITEMS,
+} from "@/lib/graphql/queries";
 import {
   BarChart,
   Bar,
@@ -34,26 +34,110 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import { useMemo } from "react";
+import { useQuery } from "@apollo/client";
+
+type AnalyticsRow = {
+  id: string;
+  date: string;
+  visitors_today: number;
+  visitors_this_week: number;
+  visitors_this_month: number;
+  visitor_trend: number;
+  inquiries_total: number;
+  inquiries_this_month: number;
+  inquiry_trend: number;
+  media_total_views: number;
+};
+
+type MediaType = "IMAGE" | "VIDEO";
+type MediaItem = {
+  id: string;
+  title: string;
+  type: MediaType;
+  url: string;
+  thumbnail_url?: string | null;
+  tags: { id: string; tag_name: string }[];
+};
 
 export function Analytics() {
-  const mediaEngagementData = [
-    { name: "Images", views: 8420, engagement: 65 },
-    { name: "Videos", views: 7000, engagement: 85 },
-    { name: "Galleries", views: 3200, engagement: 45 },
-    { name: "Testimonials", views: 1800, engagement: 72 },
-  ];
+  const { data: analyticsData, loading: analyticsLoading } = useQuery(
+    GET_ANALYTICS_DATA,
+    { variables: { limit: 30, offset: 0 } },
+  );
+  const { loading: businessLoading } = useQuery(GET_BUSINESS_STATISTICS);
+  const { data: mediaData, loading: mediaLoading } = useQuery(GET_MEDIA_ITEMS, {
+    variables: { limit: 50, offset: 0 },
+  });
 
-  const deviceData = [
-    { name: "Desktop", value: 45, color: "hsl(var(--primary))" },
-    { name: "Mobile", value: 35, color: "hsl(var(--secondary))" },
-    { name: "Tablet", value: 20, color: "hsl(var(--accent))" },
-  ];
+  const rows: AnalyticsRow[] = analyticsData?.analyticsData?.items ?? [];
+  const latest = rows[0];
 
-  const topPerformingMedia = sampleMedia.slice(0, 5).map((item) => ({
-    ...item,
-    views: Math.floor(Math.random() * 1000) + 500,
-    engagementRate: Math.floor(Math.random() * 30) + 60,
-  }));
+  const deviceData = useMemo(
+    () => [
+      { name: "Desktop", value: 45, color: "hsl(var(--primary))" },
+      { name: "Mobile", value: 35, color: "hsl(var(--secondary))" },
+      { name: "Tablet", value: 20, color: "hsl(var(--accent))" },
+    ],
+    [],
+  );
+
+  const visitorData = useMemo(() => {
+    const seven = rows.slice(0, 7).reverse();
+    return seven.map((r) => ({
+      name: new Date(r.date).toLocaleDateString(undefined, {
+        weekday: "short",
+      }),
+      visitors: r.visitors_today ?? 0,
+    }));
+  }, [rows]);
+
+  const inquiryTrendData = useMemo(() => {
+    const points = rows.slice(0, 6).reverse();
+    return points.map((r) => ({
+      name: new Date(r.date).toLocaleDateString(undefined, {
+        month: "short",
+        day: "2-digit",
+      }),
+      inquiries: r.inquiries_this_month ?? 0,
+    }));
+  }, [rows]);
+
+  const mediaEngagementData = useMemo(() => {
+    const items: MediaItem[] = mediaData?.mediaItems?.items ?? [];
+    const images = items.filter((i) => i.type === "IMAGE").length;
+    const videos = items.filter((i) => i.type === "VIDEO").length;
+    return [
+      { name: "Images", views: images, engagement: 0 },
+      { name: "Videos", views: videos, engagement: 0 },
+    ];
+  }, [mediaData]);
+
+  const topPerformingMedia = useMemo(() => {
+    const items: MediaItem[] = (mediaData?.mediaItems?.items ?? []).slice(0, 5);
+    return items.map((item) => ({
+      id: item.id,
+      title: item.title,
+      type: item.type,
+      thumbnail: item.thumbnail_url ?? item.url,
+      tags: item.tags?.map((t) => t.tag_name) ?? [],
+      views: 0,
+      engagementRate: 0,
+    }));
+  }, [mediaData]);
+
+  const topPerformingMediaView: Array<{
+    id: string;
+    title: string;
+    type: MediaType;
+    thumbnail: string;
+    tags: string[];
+    views: number;
+    engagementRate: number;
+  }> = topPerformingMedia;
+
+  const isLoading = analyticsLoading || businessLoading || mediaLoading;
+  if (isLoading) return <Loading type="page" />;
 
   return (
     <div className="space-y-6 fade-in">
@@ -76,12 +160,23 @@ export function Analytics() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {sampleAnalytics.visitors.thisMonth.toLocaleString()}
+              {(latest?.visitors_this_month ?? 0).toLocaleString()}
             </div>
             <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-              <span className="flex items-center text-green-600">
-                <TrendingUp className="h-3 w-3 mr-1" />+
-                {sampleAnalytics.visitors.trend}%
+              <span
+                className={`flex items-center ${
+                  (latest?.visitor_trend ?? 0) >= 0
+                    ? "text-green-600"
+                    : "text-red-600"
+                }`}
+              >
+                {(latest?.visitor_trend ?? 0) >= 0 ? (
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                ) : (
+                  <TrendingDown className="h-3 w-3 mr-1" />
+                )}
+                {(latest?.visitor_trend ?? 0) >= 0 ? "+" : ""}
+                {latest?.visitor_trend ?? 0}%
               </span>
               <span>vs last month</span>
             </div>
@@ -94,14 +189,10 @@ export function Analytics() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {sampleAnalytics.media.totalViews.toLocaleString()}
+              {(latest?.media_total_views ?? 0).toLocaleString()}
             </div>
             <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-              <span className="flex items-center text-green-600">
-                <TrendingUp className="h-3 w-3 mr-1" />
-                +18.2%
-              </span>
-              <span>vs last month</span>
+              <span>Based on stored analytics snapshots</span>
             </div>
           </CardContent>
         </Card>
@@ -113,13 +204,16 @@ export function Analytics() {
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">3.2%</div>
+            <div className="text-2xl font-bold">
+              {latest && latest.visitors_this_month
+                ? `${(
+                    (latest.inquiries_this_month / latest.visitors_this_month) *
+                    100
+                  ).toFixed(2)}%`
+                : "—"}
+            </div>
             <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-              <span className="flex items-center text-red-600">
-                <TrendingDown className="h-3 w-3 mr-1" />
-                -0.4%
-              </span>
-              <span>vs last month</span>
+              <span>inquiries_this_month / visitors_this_month</span>
             </div>
           </CardContent>
         </Card>
@@ -131,13 +225,9 @@ export function Analytics() {
             <Play className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">4:32</div>
+            <div className="text-2xl font-bold">—</div>
             <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-              <span className="flex items-center text-green-600">
-                <TrendingUp className="h-3 w-3 mr-1" />
-                +12s
-              </span>
-              <span>vs last month</span>
+              <span>Not tracked yet</span>
             </div>
           </CardContent>
         </Card>
@@ -259,12 +349,12 @@ export function Analytics() {
         <CardHeader>
           <CardTitle>Top Performing Media</CardTitle>
           <CardDescription>
-            Your most viewed and engaging content
+            Most recent uploads (per-item views not tracked yet)
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {topPerformingMedia.map((item, index) => (
+            {topPerformingMediaView.map((item, index: number) => (
               <div
                 key={item.id}
                 className="flex items-center space-x-4 p-4 border rounded-lg"
@@ -279,15 +369,13 @@ export function Analytics() {
                 <div className="flex-1 min-w-0">
                   <h4 className="font-medium text-sm truncate">{item.title}</h4>
                   <p className="text-xs text-muted-foreground">
-                    {item.type === "video" ? "Video" : "Image"} •{" "}
+                    {item.type === "VIDEO" ? "Video" : "Image"} •{" "}
                     {item.tags.join(", ")}
                   </p>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-medium">{item.views} views</div>
-                  <div className="text-xs text-muted-foreground">
-                    {item.engagementRate}% engagement
-                  </div>
+                  <div className="text-sm font-medium">—</div>
+                  <div className="text-xs text-muted-foreground">—</div>
                 </div>
                 <Badge variant="outline">#{index + 1}</Badge>
               </div>

@@ -11,20 +11,20 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { CREATE_MEDIA_ITEM } from "@/lib/graphql/mutations";
 import { AddMediaFormData, addMediaFormSchema } from "@/lib/schemas/validation";
+import {
+  formatFileSize,
+  getImageDimensions,
+  getVideoDuration,
+  uploadFile,
+  validateFile,
+} from "@/lib/api/file-upload";
 import { useMutation } from "@apollo/client";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, X, Youtube } from "lucide-react";
+import { Plus, Upload, X } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 
@@ -36,6 +36,8 @@ export function AddMedia({ onMediaAdded }: AddMediaProps) {
   const [open, setOpen] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
   const [currentTag, setCurrentTag] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>("");
   const { toast } = useToast();
 
   const {
@@ -44,12 +46,10 @@ export function AddMedia({ onMediaAdded }: AddMediaProps) {
     formState: { errors, isSubmitting },
     reset,
     setValue,
-    watch,
   } = useForm<AddMediaFormData>({
     resolver: zodResolver(addMediaFormSchema),
     defaultValues: {
       title: "",
-      youtubeUrl: "",
       description: "",
       category: "",
       tags: [],
@@ -58,24 +58,6 @@ export function AddMedia({ onMediaAdded }: AddMediaProps) {
   });
 
   const [createMediaItem] = useMutation(CREATE_MEDIA_ITEM);
-
-  const categories = [
-    "Wedding Photography",
-    "Corporate Videos",
-    "Product Photography",
-    "Event Photography",
-    "Portrait Sessions",
-    "Brand Photography",
-    "Commercial Videos",
-    "Documentary",
-  ];
-
-  const extractYouTubeId = (url: string) => {
-    const regExp =
-      /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-    const match = url.match(regExp);
-    return match && match[2].length === 11 ? match[2] : null;
-  };
 
   const handleAddTag = () => {
     if (currentTag.trim() && !tags.includes(currentTag.trim())) {
@@ -99,25 +81,80 @@ export function AddMedia({ onMediaAdded }: AddMediaProps) {
     }
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0] ?? null;
+    setFile(selected);
+
+    if (!selected) {
+      setPreviewUrl("");
+      return;
+    }
+
+    const validation = validateFile(selected, 50 * 1024 * 1024, [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "video/mp4",
+      "video/webm",
+      "video/quicktime",
+    ]);
+    if (!validation.valid) {
+      toast({
+        title: "Invalid file",
+        description: validation.error ?? "File not allowed",
+        variant: "destructive",
+      });
+      setFile(null);
+      setPreviewUrl("");
+      return;
+    }
+
+    setPreviewUrl(URL.createObjectURL(selected));
+  };
+
   const onSubmit = async (data: AddMediaFormData) => {
     try {
-      const youtubeId = extractYouTubeId(data.youtubeUrl);
-
-      if (!youtubeId) {
+      if (!file) {
         toast({
           title: "Error",
-          description: "Please enter a valid YouTube URL",
+          description: "Please select a media file to upload",
           variant: "destructive",
         });
         return;
       }
 
+      const type = file.type.startsWith("video/")
+        ? ("VIDEO" as const)
+        : ("IMAGE" as const);
+
+      const [dimensions, duration] = await Promise.all([
+        type === "IMAGE"
+          ? getImageDimensions(file)
+              .then((d) => `${d.width}x${d.height}`)
+              .catch(() => undefined)
+          : Promise.resolve(undefined),
+        type === "VIDEO"
+          ? getVideoDuration(file)
+              .then((sec) => `${Math.round(sec)}s`)
+              .catch(() => undefined)
+          : Promise.resolve(undefined),
+      ]);
+
+      const uploadResult = await uploadFile(file, { folder: "media" });
+      if (!uploadResult.fileName) {
+        throw new Error(uploadResult.message || "Upload failed");
+      }
+
       const result = await createMediaItem({
         variables: {
           title: data.title,
-          type: "VIDEO",
-          url: data.youtubeUrl,
-          thumbnail_url: `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`,
+          type,
+          url: uploadResult.fileName,
+          thumbnail_url: type === "IMAGE" ? uploadResult.fileName : undefined,
+          file_size: formatFileSize(file.size),
+          dimensions,
+          duration,
           tags: tags.length > 0 ? tags : undefined,
         },
       });
@@ -136,6 +173,9 @@ export function AddMedia({ onMediaAdded }: AddMediaProps) {
         reset();
         setTags([]);
         setCurrentTag("");
+        setFile(null);
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        setPreviewUrl("");
         setOpen(false);
       } else {
         throw new Error(
@@ -156,9 +196,6 @@ export function AddMedia({ onMediaAdded }: AddMediaProps) {
     }
   };
 
-  const youtubeUrl = watch("youtubeUrl");
-  const youtubeId = extractYouTubeId(youtubeUrl);
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -170,11 +207,12 @@ export function AddMedia({ onMediaAdded }: AddMediaProps) {
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
-            <Youtube className="h-5 w-5 text-red-500" />
-            <span>Add YouTube Media</span>
+            <Upload className="h-5 w-5" />
+            <span>Upload Media</span>
           </DialogTitle>
           <DialogDescription>
-            Add a new video from YouTube to your media library.
+            Upload an image or video. The uploaded URL will be saved in the
+            database.
           </DialogDescription>
         </DialogHeader>
 
@@ -196,53 +234,42 @@ export function AddMedia({ onMediaAdded }: AddMediaProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="category">Category *</Label>
-              <Select onValueChange={(value) => setValue("category", value)}>
-                <SelectTrigger
-                  className={errors.category ? "border-destructive" : ""}
-                >
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.category && (
-                <p className="text-sm text-destructive">
-                  {errors.category.message}
-                </p>
-              )}
+              <Label htmlFor="category">Category</Label>
+              <Input
+                id="category"
+                placeholder="Optional category"
+                {...register("category")}
+              />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="youtubeUrl">YouTube URL *</Label>
+            <Label htmlFor="mediaFile">Media file *</Label>
             <Input
-              id="youtubeUrl"
-              placeholder="https://www.youtube.com/watch?v=..."
-              {...register("youtubeUrl")}
-              className={errors.youtubeUrl ? "border-destructive" : ""}
+              id="mediaFile"
+              type="file"
+              accept="image/*,video/*"
+              onChange={handleFileChange}
             />
-            {errors.youtubeUrl && (
-              <p className="text-sm text-destructive">
-                {errors.youtubeUrl.message}
-              </p>
-            )}
           </div>
 
-          {youtubeId && (
+          {previewUrl && (
             <div className="space-y-2">
               <Label>Preview</Label>
               <div className="aspect-video bg-muted rounded-lg overflow-hidden">
-                <img
-                  src={`https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`}
-                  alt="YouTube thumbnail"
-                  className="w-full h-full object-cover"
-                />
+                {file?.type.startsWith("video/") ? (
+                  <video
+                    src={previewUrl}
+                    className="w-full h-full object-cover"
+                    controls
+                  />
+                ) : (
+                  <img
+                    src={previewUrl}
+                    alt="Uploaded preview"
+                    className="w-full h-full object-cover"
+                  />
+                )}
               </div>
             </div>
           )}

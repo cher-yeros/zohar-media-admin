@@ -51,11 +51,6 @@ const Settings = lazy(() =>
 const Login = lazy(() =>
   import("@/pages/auth/login").then((module) => ({ default: module.Login })),
 );
-const Register = lazy(() =>
-  import("@/pages/auth/register").then((module) => ({
-    default: module.Register,
-  })),
-);
 const Profile = lazy(() =>
   import("@/pages/profile").then((module) => ({ default: module.Profile })),
 );
@@ -70,7 +65,7 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="light" storageKey="zohar-media-theme">
+      <ThemeProvider defaultTheme="dark" storageKey="zohar-media-theme">
         <MyApolloProvider>
           <Router>
             <Routes>
@@ -81,16 +76,6 @@ function App() {
                   <ProtectedRoute requireAuth={false}>
                     <Suspense fallback={<Loading type="page" />}>
                       <Login />
-                    </Suspense>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/register"
-                element={
-                  <ProtectedRoute requireAuth={false}>
-                    <Suspense fallback={<Loading type="page" />}>
-                      <Register />
                     </Suspense>
                   </ProtectedRoute>
                 }

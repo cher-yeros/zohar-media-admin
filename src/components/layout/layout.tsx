@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
+import { SITE_NAME } from "@/lib/branding";
 import { Sidebar } from "./sidebar";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { Button } from "@/components/ui/button";
@@ -34,6 +36,10 @@ export function Layout() {
 
   const currentTitle =
     routeTitles.find((r) => r.href === location.pathname)?.title ?? "Admin";
+
+  useEffect(() => {
+    document.title = `${currentTitle} | ${SITE_NAME}`;
+  }, [currentTitle]);
 
   const displayName =
     [currentUser?.first_name, currentUser?.last_name]

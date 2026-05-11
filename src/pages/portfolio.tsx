@@ -1,12 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -25,14 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -56,20 +42,36 @@ import {
 import { formatDate } from "@/lib/utils";
 import { useMutation, useQuery } from "@apollo/client";
 import {
-  Calendar,
   CheckCircle,
   Clock,
   Edit,
   ExternalLink,
+  Eye,
   FileText,
   Image as ImageIcon,
   Plus,
   Search,
   Star,
-  Tag,
   Trash2,
 } from "lucide-react";
 import { useState } from "react";
+
+function PortfolioCardPreview({ item }: { item: PortfolioItem }) {
+  if (item.thumbnail_url) {
+    return (
+      <img
+        src={item.thumbnail_url}
+        alt={item.title}
+        className="h-full w-full object-cover"
+      />
+    );
+  }
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-muted">
+      <ImageIcon className="h-12 w-12 text-muted-foreground" />
+    </div>
+  );
+}
 
 export function Portfolio() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -78,6 +80,8 @@ export function Portfolio() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<PortfolioItem | null>(null);
+  const [selectedPortfolioItem, setSelectedPortfolioItem] =
+    useState<PortfolioItem | null>(null);
   const { toast } = useToast();
 
   // Form state
@@ -310,32 +314,6 @@ export function Portfolio() {
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
-  const getStatusIcon = (status: PortfolioItemStatus) => {
-    switch (status) {
-      case PortfolioItemStatus.COMPLETED:
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case PortfolioItemStatus.IN_PROGRESS:
-        return <Clock className="h-4 w-4 text-yellow-600" />;
-      case PortfolioItemStatus.DRAFT:
-        return <FileText className="h-4 w-4 text-gray-600" />;
-      default:
-        return null;
-    }
-  };
-
-  const getStatusColor = (status: PortfolioItemStatus) => {
-    switch (status) {
-      case PortfolioItemStatus.COMPLETED:
-        return "default";
-      case PortfolioItemStatus.IN_PROGRESS:
-        return "secondary";
-      case PortfolioItemStatus.DRAFT:
-        return "outline";
-      default:
-        return "outline";
-    }
-  };
-
   if (isLoading) {
     return <Loading type="page" />;
   }
@@ -379,57 +357,42 @@ export function Portfolio() {
 
       {/* Stats Cards */}
       <div className="grid gap-6 md:grid-cols-4">
-        <Card className="card-hover">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <Card>
+          <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">
               Total Projects
             </CardTitle>
-            <ImageIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{portfolioItems.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {
-                portfolioItems.filter(
-                  (p: PortfolioItem) =>
-                    p.status === PortfolioItemStatus.COMPLETED,
-                ).length
-              }{" "}
-              completed
-            </p>
           </CardContent>
         </Card>
-        <Card className="card-hover">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Featured Projects
-            </CardTitle>
-            <Star className="h-4 w-4 text-muted-foreground" />
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Featured</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-2xl font-bold text-amber-600">
               {portfolioItems.filter((p: PortfolioItem) => p.featured).length}
             </div>
-            <p className="text-xs text-muted-foreground">Highlighted work</p>
           </CardContent>
         </Card>
-        <Card className="card-hover">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <Card>
+          <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Categories</CardTitle>
-            <Tag className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{categories.length}</div>
-            <p className="text-xs text-muted-foreground">Different types</p>
+            <div className="text-2xl font-bold text-blue-600">
+              {categories.length}
+            </div>
           </CardContent>
         </Card>
-        <Card className="card-hover">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <Card>
+          <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">In Progress</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-2xl font-bold text-purple-600">
               {
                 portfolioItems.filter(
                   (p: PortfolioItem) =>
@@ -437,7 +400,6 @@ export function Portfolio() {
                 ).length
               }
             </div>
-            <p className="text-xs text-muted-foreground">Active projects</p>
           </CardContent>
         </Card>
       </div>
@@ -445,18 +407,15 @@ export function Portfolio() {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Portfolio Items</CardTitle>
-          <CardDescription>
-            Manage and view all portfolio projects
-          </CardDescription>
+          <CardTitle>Filter Portfolio</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col gap-3 mb-6 md:flex-row md:items-center md:gap-4">
+          <div className="flex flex-col gap-4 md:flex-row">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search portfolio items..."
+                  placeholder="Search by title, client, or description..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -464,8 +423,8 @@ export function Portfolio() {
               </div>
             </div>
             <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="w-full md:w-56">
-                <SelectValue placeholder="Filter by category" />
+              <SelectTrigger className="w-full md:w-[180px]">
+                <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
@@ -477,8 +436,8 @@ export function Portfolio() {
               </SelectContent>
             </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-full md:w-56">
-                <SelectValue placeholder="Filter by status" />
+              <SelectTrigger className="w-full md:w-[160px]">
+                <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
@@ -488,149 +447,285 @@ export function Portfolio() {
               </SelectContent>
             </Select>
           </div>
-
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Project</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Team</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredItems.map((item: PortfolioItem) => {
-                const category = item.category;
-                const assignedTeamMembers = item.team_members.map(
-                  (tm: any) => tm.team_member,
-                );
-
-                return (
-                  <TableRow key={item.id}>
-                    <TableCell>
-                      <div className="flex items-center space-x-3">
-                        <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
-                          {item.thumbnail_url ? (
-                            <img
-                              src={item.thumbnail_url}
-                              alt={item.title}
-                              className="h-12 w-12 rounded-lg object-cover"
-                            />
-                          ) : (
-                            <ImageIcon className="h-6 w-6 text-muted-foreground" />
-                          )}
-                        </div>
-                        <div>
-                          <div className="font-medium flex items-center space-x-2">
-                            {item.title}
-                            {item.featured && (
-                              <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                            )}
-                          </div>
-                          <div className="text-sm text-muted-foreground line-clamp-2">
-                            {item.description}
-                          </div>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {category && (
-                        <Badge
-                          variant="outline"
-                          style={{
-                            borderColor: category.color,
-                            color: category.color,
-                          }}
-                        >
-                          {category.name}
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">{item.client_name || "N/A"}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-1 text-sm text-muted-foreground">
-                        <Calendar className="h-3 w-3" />
-                        <span>{formatDate(item.project_date)}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        {getStatusIcon(item.status)}
-                        <Badge variant={getStatusColor(item.status)}>
-                          {item.status.replace("_", " ").toLowerCase()}
-                        </Badge>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex -space-x-2">
-                        {assignedTeamMembers.slice(0, 3).map((member: any) => (
-                          <div
-                            key={member.id}
-                            className="h-6 w-6 rounded-full bg-primary/10 border-2 border-background flex items-center justify-center text-xs font-medium"
-                            title={member.name}
-                          >
-                            {member.avatar_url ? (
-                              <img
-                                src={member.avatar_url}
-                                alt={member.name}
-                                className="h-6 w-6 rounded-full object-cover"
-                              />
-                            ) : (
-                              member.name
-                                .split(" ")
-                                .map((n: string) => n[0])
-                                .join("")
-                            )}
-                          </div>
-                        ))}
-                        {assignedTeamMembers.length > 3 && (
-                          <div className="h-6 w-6 rounded-full bg-muted border-2 border-background flex items-center justify-center text-xs">
-                            +{assignedTeamMembers.length - 3}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        {item.project_url && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              window.open(item.project_url, "_blank")
-                            }
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditItem(item)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteItem(item.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
         </CardContent>
       </Card>
+
+      {/* Portfolio grid */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {filteredItems.map((item: PortfolioItem) => {
+          const category = item.category;
+          const assignedTeamMembers = item.team_members.map(
+            (tm) => tm.team_member,
+          );
+          const StatusIconGlyph =
+            item.status === PortfolioItemStatus.COMPLETED
+              ? CheckCircle
+              : item.status === PortfolioItemStatus.IN_PROGRESS
+                ? Clock
+                : FileText;
+
+          return (
+            <Card key={item.id} className="group card-hover overflow-hidden">
+              <div className="relative aspect-video bg-muted">
+                <PortfolioCardPreview item={item} />
+                <div className="absolute top-2 right-2 flex flex-wrap items-center justify-end gap-1">
+                  {item.featured && (
+                    <Badge
+                      variant="secondary"
+                      className="flex items-center gap-0.5 shadow-sm"
+                    >
+                      <Star className="h-3 w-3 text-amber-500 fill-current" />
+                      <span className="capitalize">featured</span>
+                    </Badge>
+                  )}
+                  <Badge
+                    variant="secondary"
+                    className="flex items-center gap-1 shadow-sm capitalize"
+                  >
+                    <StatusIconGlyph className="h-3 w-3 shrink-0" />
+                    <span>{item.status.replace("_", " ").toLowerCase()}</span>
+                  </Badge>
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center space-x-2 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setSelectedPortfolioItem(item)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl">
+                      <DialogHeader>
+                        <DialogTitle>
+                          {selectedPortfolioItem?.title}
+                        </DialogTitle>
+                        <DialogDescription className="flex flex-wrap items-center gap-2">
+                          {selectedPortfolioItem?.category && (
+                            <Badge
+                              variant="outline"
+                              style={{
+                                borderColor:
+                                  selectedPortfolioItem.category.color,
+                                color: selectedPortfolioItem.category.color,
+                              }}
+                            >
+                              {selectedPortfolioItem.category.name}
+                            </Badge>
+                          )}
+                          <span className="text-muted-foreground">
+                            {selectedPortfolioItem &&
+                              formatDate(selectedPortfolioItem.project_date)}
+                          </span>
+                        </DialogDescription>
+                      </DialogHeader>
+                      {selectedPortfolioItem && (
+                        <div className="space-y-4">
+                          <div className="aspect-video overflow-hidden rounded-lg bg-black">
+                            {selectedPortfolioItem.thumbnail_url ? (
+                              <img
+                                src={selectedPortfolioItem.thumbnail_url}
+                                alt={selectedPortfolioItem.title}
+                                className="h-full w-full object-contain"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center bg-muted">
+                                <ImageIcon className="h-16 w-16 text-muted-foreground" />
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {selectedPortfolioItem.description}
+                          </p>
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <span className="font-medium">Client</span>
+                              <p className="text-muted-foreground">
+                                {selectedPortfolioItem.client_name ?? "—"}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="font-medium">Status</span>
+                              <p className="text-muted-foreground capitalize">
+                                {selectedPortfolioItem.status
+                                  .replace("_", " ")
+                                  .toLowerCase()}
+                              </p>
+                            </div>
+                            <div className="col-span-2">
+                              <span className="font-medium">Team</span>
+                              <div className="mt-1 flex flex-wrap gap-2">
+                                {selectedPortfolioItem.team_members.length ===
+                                0 ? (
+                                  <span className="text-muted-foreground">
+                                    —
+                                  </span>
+                                ) : (
+                                  selectedPortfolioItem.team_members.map(
+                                    (tm) => (
+                                      <Badge
+                                        key={tm.id}
+                                        variant="outline"
+                                        className="font-normal"
+                                      >
+                                        {tm.team_member.name}
+                                      </Badge>
+                                    ),
+                                  )
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div>
+                            <span className="text-sm font-medium">Tags</span>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {selectedPortfolioItem.tags.length === 0 ? (
+                                <span className="text-sm text-muted-foreground">
+                                  —
+                                </span>
+                              ) : (
+                                selectedPortfolioItem.tags.map((tag) => (
+                                  <Badge key={tag.id} variant="outline">
+                                    {tag.tag_name}
+                                  </Badge>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                          {selectedPortfolioItem.project_url && (
+                            <Button
+                              variant="outline"
+                              className="w-full sm:w-auto"
+                              onClick={() =>
+                                window.open(
+                                  selectedPortfolioItem.project_url,
+                                  "_blank",
+                                )
+                              }
+                            >
+                              <ExternalLink className="mr-2 h-4 w-4" />
+                              Open project link
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </DialogContent>
+                  </Dialog>
+                  {item.project_url && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => window.open(item.project_url, "_blank")}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => handleEditItem(item)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => handleDeleteItem(item.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <CardContent className="p-4">
+                <h3 className="mb-2 line-clamp-1 text-sm font-semibold">
+                  {item.title}
+                </h3>
+                <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+                  <span className="line-clamp-1 pr-2">
+                    {item.client_name || "—"}
+                  </span>
+                  <span className="shrink-0">
+                    {formatDate(item.project_date)}
+                  </span>
+                </div>
+                <div className="mb-2 flex flex-wrap gap-1">
+                  {category && (
+                    <Badge
+                      variant="outline"
+                      className="text-xs"
+                      style={{
+                        borderColor: category.color,
+                        color: category.color,
+                      }}
+                    >
+                      {category.name}
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-1">
+                  {assignedTeamMembers.slice(0, 3).map((member) => (
+                    <div
+                      key={member.id}
+                      className="h-6 w-6 overflow-hidden rounded-full border-2 border-background bg-primary/10"
+                      title={member.name}
+                    >
+                      {member.avatar_url ? (
+                        <img
+                          src={member.avatar_url}
+                          alt={member.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-[10px] font-medium">
+                          {member.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {assignedTeamMembers.length > 3 && (
+                    <Badge variant="outline" className="text-xs">
+                      +{assignedTeamMembers.length - 3}
+                    </Badge>
+                  )}
+                  {item.tags.slice(0, 2).map((tag) => (
+                    <Badge key={tag.id} variant="outline" className="text-xs">
+                      {tag.tag_name}
+                    </Badge>
+                  ))}
+                  {item.tags.length > 2 && (
+                    <Badge variant="outline" className="text-xs">
+                      +{item.tags.length - 2} more
+                    </Badge>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {filteredItems.length === 0 && (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <ImageIcon className="mb-4 h-12 w-12 text-muted-foreground" />
+            <h3 className="mb-2 text-lg font-semibold">No portfolio items</h3>
+            <p className="mb-4 text-center text-muted-foreground">
+              {searchTerm || filterCategory !== "all" || filterStatus !== "all"
+                ? "Try adjusting your search or filters"
+                : "Add your first portfolio item to get started"}
+            </p>
+            <Button onClick={() => setIsAddDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Portfolio Item
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

@@ -21,39 +21,6 @@ export const LOGIN_USER = gql`
   }
 `;
 
-export const CREATE_USER = gql`
-  mutation CreateUser(
-    $email: String!
-    $password: String!
-    $first_name: String!
-    $last_name: String!
-    $role: UserRole
-    $avatar_url: String
-  ) {
-    createUser(
-      email: $email
-      password: $password
-      first_name: $first_name
-      last_name: $last_name
-      role: $role
-      avatar_url: $avatar_url
-    ) {
-      success
-      message
-      user {
-        id
-        email
-        first_name
-        last_name
-        role
-        avatar_url
-        is_active
-        createdAt
-      }
-    }
-  }
-`;
-
 export const UPDATE_USER = gql`
   mutation UpdateUser(
     $id: ID!
@@ -83,8 +50,22 @@ export const UPDATE_USER = gql`
         role
         avatar_url
         is_active
-        updated_at
+        last_login_at
+        createdAt
+        updatedAt
       }
+    }
+  }
+`;
+
+export const CHANGE_PASSWORD = gql`
+  mutation ChangePassword($currentPassword: String!, $newPassword: String!) {
+    changePassword(
+      currentPassword: $currentPassword
+      newPassword: $newPassword
+    ) {
+      success
+      message
     }
   }
 `;
@@ -99,9 +80,9 @@ export const CREATE_TEAM_MEMBER = gql`
     $avatar_url: String
     $bio: String
     $join_date: String!
-    $status: String
+    $status: TeamMemberStatus
     $skills: [String!]
-    $social_links: [TeamMemberSocialLinkInput!]
+    $social_links: [SocialLinkInput!]
   ) {
     createTeamMember(
       name: $name
@@ -128,19 +109,17 @@ export const CREATE_TEAM_MEMBER = gql`
         join_date
         status
         createdAt
-        updatedAt
+
         skills {
           id
           skill_name
           createdAt
-          updatedAt
         }
         social_links {
           id
           platform
           url
           createdAt
-          updatedAt
         }
       }
     }
@@ -156,9 +135,9 @@ export const UPDATE_TEAM_MEMBER = gql`
     $phone: String
     $avatar_url: String
     $bio: String
-    $status: String
+    $status: TeamMemberStatus
     $skills: [String!]
-    $social_links: [TeamMemberSocialLinkInput!]
+    $social_links: [SocialLinkInput!]
   ) {
     updateTeamMember(
       id: $id
@@ -184,19 +163,17 @@ export const UPDATE_TEAM_MEMBER = gql`
         bio
         status
         createdAt
-        updatedAt
+        updated_at
         skills {
           id
           skill_name
           createdAt
-          updatedAt
         }
         social_links {
           id
           platform
           url
           createdAt
-          updatedAt
         }
       }
     }
@@ -528,6 +505,15 @@ export const UPDATE_INQUIRY = gql`
   }
 `;
 
+export const DELETE_INQUIRY = gql`
+  mutation DeleteInquiry($id: ID!) {
+    deleteInquiry(id: $id) {
+      success
+      message
+    }
+  }
+`;
+
 // Testimonial Mutations
 export const CREATE_TESTIMONIAL = gql`
   mutation CreateTestimonial(
@@ -617,6 +603,15 @@ export const UPDATE_TESTIMONIAL = gql`
   }
 `;
 
+export const DELETE_TESTIMONIAL = gql`
+  mutation DeleteTestimonial($id: ID!) {
+    deleteTestimonial(id: $id) {
+      success
+      message
+    }
+  }
+`;
+
 // Media Mutations
 export const CREATE_MEDIA_ITEM = gql`
   mutation CreateMediaItem(
@@ -656,6 +651,59 @@ export const CREATE_MEDIA_ITEM = gql`
           tag_name
         }
       }
+    }
+  }
+`;
+
+export const UPDATE_MEDIA_ITEM = gql`
+  mutation UpdateMediaItem(
+    $id: ID!
+    $title: String
+    $type: MediaType
+    $url: String
+    $thumbnail_url: String
+    $file_size: String
+    $dimensions: String
+    $duration: String
+    $tags: [String!]
+  ) {
+    updateMediaItem(
+      id: $id
+      title: $title
+      type: $type
+      url: $url
+      thumbnail_url: $thumbnail_url
+      file_size: $file_size
+      dimensions: $dimensions
+      duration: $duration
+      tags: $tags
+    ) {
+      success
+      message
+      mediaItem {
+        id
+        title
+        type
+        url
+        thumbnail_url
+        file_size
+        dimensions
+        duration
+        upload_date
+        tags {
+          id
+          tag_name
+        }
+      }
+    }
+  }
+`;
+
+export const DELETE_MEDIA_ITEM = gql`
+  mutation DeleteMediaItem($id: ID!) {
+    deleteMediaItem(id: $id) {
+      success
+      message
     }
   }
 `;
@@ -720,6 +768,41 @@ export const DELETE_GALLERY_PHOTO = gql`
     deleteGalleryPhoto(id: $id) {
       success
       message
+    }
+  }
+`;
+
+export const UPDATE_BUSINESS_STATISTICS = gql`
+  mutation UpdateBusinessStatistics(
+    $completed_projects: Int
+    $happy_clients: Int
+    $perspective_clients: Int
+    $total_revenue: Float
+    $average_project_value: Float
+    $is_public: Boolean
+    $auto_update: Boolean
+  ) {
+    updateBusinessStatistics(
+      completed_projects: $completed_projects
+      happy_clients: $happy_clients
+      perspective_clients: $perspective_clients
+      total_revenue: $total_revenue
+      average_project_value: $average_project_value
+      is_public: $is_public
+      auto_update: $auto_update
+    ) {
+      success
+      message
+      statistics {
+        id
+        completed_projects
+        happy_clients
+        perspective_clients
+        total_revenue
+        average_project_value
+        is_public
+        auto_update
+      }
     }
   }
 `;

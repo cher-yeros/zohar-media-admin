@@ -31,17 +31,54 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Inquiry, sampleInquiries } from "@/data/sample-data";
+import { Loading } from "@/components/ui/loading";
+import { useToast } from "@/hooks/use-toast";
+import { UPDATE_INQUIRY } from "@/lib/graphql/mutations";
+import { GET_INQUIRIES, GET_TEAM_MEMBERS } from "@/lib/graphql/queries";
 import { formatDateTime } from "@/lib/utils";
 import { CheckCircle, Download, Eye, Search } from "lucide-react";
 import { useState } from "react";
+import { useMutation, useQuery } from "@apollo/client";
+
+type InquiryStatus = "UNREAD" | "RESPONDED" | "RESOLVED";
+type InquiryType = "GENERAL" | "COLLABORATION" | "PRICING" | "SUPPORT";
+
+type Inquiry = {
+  id: string;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  inquiry_date: string;
+  status: InquiryStatus;
+  type: InquiryType;
+  assigned_to?: string | null;
+  response?: string | null;
+  response_date?: string | null;
+  assigned_team_member?: { id: string; name: string; email: string } | null;
+};
 
 export function Inquiries() {
-  const [inquiries, setInquiries] = useState(sampleInquiries);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null);
+  const { toast } = useToast();
+
+  const {
+    data: inquiriesData,
+    loading: inquiriesLoading,
+    refetch: refetchInquiries,
+  } = useQuery(GET_INQUIRIES, {
+    variables: { limit: 200, offset: 0 },
+  });
+
+  const { data: teamData } = useQuery(GET_TEAM_MEMBERS);
+  const teamMembers = teamData?.teamMembers ?? [];
+
+  const [updateInquiry, { loading: updating }] = useMutation(UPDATE_INQUIRY);
+
+  const inquiries: Inquiry[] = inquiriesData?.inquiries?.items ?? [];
 
   const filteredInquiries = inquiries.filter((inquiry) => {
     const matchesSearch =
@@ -55,23 +92,56 @@ export function Inquiries() {
     return matchesSearch && matchesStatus && matchesType;
   });
 
-  const handleMarkResolved = (inquiryId: string) => {
-    setInquiries((prev) =>
-      prev.map((inquiry) =>
-        inquiry.id === inquiryId
-          ? { ...inquiry, status: "resolved" as const }
-          : inquiry,
-      ),
-    );
+  const handleUpdateInquiry = async (
+    inquiryId: string,
+    patch: { status?: InquiryStatus; assigned_to?: string | null },
+  ) => {
+    try {
+      const result = await updateInquiry({
+        variables: {
+          id: inquiryId,
+          ...(patch.status ? { status: patch.status } : {}),
+          ...(patch.assigned_to !== undefined
+            ? { assigned_to: patch.assigned_to }
+            : {}),
+        },
+      });
+
+      if (result.data?.updateInquiry?.success) {
+        await refetchInquiries();
+        toast({
+          title: "Inquiry updated",
+          description: "Changes saved successfully.",
+        });
+      } else {
+        throw new Error(
+          result.data?.updateInquiry?.message ?? "Failed to update inquiry",
+        );
+      }
+    } catch (e) {
+      toast({
+        title: "Error",
+        description:
+          e instanceof Error ? e.message : "Failed to update inquiry",
+        variant: "destructive",
+      });
+    }
   };
+
+  const handleMarkResolved = (inquiryId: string) =>
+    handleUpdateInquiry(inquiryId, { status: "RESOLVED" });
+
+  if (inquiriesLoading) {
+    return <Loading type="page" />;
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "unread":
+      case "UNREAD":
         return "destructive";
-      case "responded":
+      case "RESPONDED":
         return "default";
-      case "resolved":
+      case "RESOLVED":
         return "secondary";
       default:
         return "outline";
@@ -80,13 +150,13 @@ export function Inquiries() {
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case "collaboration":
+      case "COLLABORATION":
         return "default";
-      case "pricing":
+      case "PRICING":
         return "secondary";
-      case "general":
+      case "GENERAL":
         return "outline";
-      case "support":
+      case "SUPPORT":
         return "destructive";
       default:
         return "outline";
@@ -127,7 +197,7 @@ export function Inquiries() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              {inquiries.filter((i) => i.status === "unread").length}
+              {inquiries.filter((i) => i.status === "UNREAD").length}
             </div>
           </CardContent>
         </Card>
@@ -137,7 +207,7 @@ export function Inquiries() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              {inquiries.filter((i) => i.status === "responded").length}
+              {inquiries.filter((i) => i.status === "RESPONDED").length}
             </div>
           </CardContent>
         </Card>
@@ -147,7 +217,7 @@ export function Inquiries() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {inquiries.filter((i) => i.status === "resolved").length}
+              {inquiries.filter((i) => i.status === "RESOLVED").length}
             </div>
           </CardContent>
         </Card>
@@ -177,9 +247,9 @@ export function Inquiries() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="unread">Unread</SelectItem>
-                <SelectItem value="responded">Responded</SelectItem>
-                <SelectItem value="resolved">Resolved</SelectItem>
+                <SelectItem value="UNREAD">Unread</SelectItem>
+                <SelectItem value="RESPONDED">Responded</SelectItem>
+                <SelectItem value="RESOLVED">Resolved</SelectItem>
               </SelectContent>
             </Select>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
@@ -188,10 +258,10 @@ export function Inquiries() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="general">General</SelectItem>
-                <SelectItem value="collaboration">Collaboration</SelectItem>
-                <SelectItem value="pricing">Pricing</SelectItem>
-                <SelectItem value="support">Support</SelectItem>
+                <SelectItem value="GENERAL">General</SelectItem>
+                <SelectItem value="COLLABORATION">Collaboration</SelectItem>
+                <SelectItem value="PRICING">Pricing</SelectItem>
+                <SelectItem value="SUPPORT">Support</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -232,7 +302,7 @@ export function Inquiries() {
                       {inquiry.type}
                     </Badge>
                   </TableCell>
-                  <TableCell>{formatDateTime(inquiry.date)}</TableCell>
+                  <TableCell>{formatDateTime(inquiry.inquiry_date)}</TableCell>
                   <TableCell>
                     <Badge variant={getStatusColor(inquiry.status)}>
                       {inquiry.status}
@@ -256,7 +326,7 @@ export function Inquiries() {
                             <DialogDescription>
                               From {selectedInquiry?.name} on{" "}
                               {selectedInquiry &&
-                                formatDateTime(selectedInquiry.date)}
+                                formatDateTime(selectedInquiry.inquiry_date)}
                             </DialogDescription>
                           </DialogHeader>
                           {selectedInquiry && (
@@ -301,6 +371,48 @@ export function Inquiries() {
                                   </Badge>
                                 </div>
                               </div>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <label className="text-sm font-medium">
+                                    Assigned to
+                                  </label>
+                                  <Select
+                                    value={
+                                      selectedInquiry.assigned_to ??
+                                      "unassigned"
+                                    }
+                                    onValueChange={(value) =>
+                                      handleUpdateInquiry(selectedInquiry.id, {
+                                        assigned_to:
+                                          value === "unassigned" ? null : value,
+                                      })
+                                    }
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="unassigned">
+                                        Unassigned
+                                      </SelectItem>
+                                      {teamMembers.map((m: any) => (
+                                        <SelectItem key={m.id} value={m.id}>
+                                          {m.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div>
+                                  <label className="text-sm font-medium">
+                                    Assigned member
+                                  </label>
+                                  <p className="text-sm text-muted-foreground">
+                                    {selectedInquiry.assigned_team_member
+                                      ?.name ?? "—"}
+                                  </p>
+                                </div>
+                              </div>
                               <div>
                                 <label className="text-sm font-medium">
                                   Subject
@@ -323,7 +435,8 @@ export function Inquiries() {
                                     handleMarkResolved(selectedInquiry.id)
                                   }
                                   disabled={
-                                    selectedInquiry.status === "resolved"
+                                    selectedInquiry.status === "RESOLVED" ||
+                                    updating
                                   }
                                 >
                                   <CheckCircle className="h-4 w-4 mr-2" />
@@ -335,11 +448,12 @@ export function Inquiries() {
                           )}
                         </DialogContent>
                       </Dialog>
-                      {inquiry.status !== "resolved" && (
+                      {inquiry.status !== "RESOLVED" && (
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleMarkResolved(inquiry.id)}
+                          disabled={updating}
                         >
                           <CheckCircle className="h-4 w-4" />
                         </Button>

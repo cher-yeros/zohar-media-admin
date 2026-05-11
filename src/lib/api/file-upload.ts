@@ -6,8 +6,8 @@
 import { config } from "../config";
 
 export interface FileUploadResponse {
-  success: boolean;
-  message: string;
+  success?: boolean;
+  message?: string;
   fileName?: string;
   error?: string;
 }
@@ -25,7 +25,7 @@ export interface FileUploadOptions {
  */
 export const uploadFile = async (
   file: File,
-  options: FileUploadOptions
+  options: FileUploadOptions,
 ): Promise<FileUploadResponse> => {
   const { folder, onProgress } = options;
 
@@ -47,7 +47,15 @@ export const uploadFile = async (
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
             const response = JSON.parse(xhr.responseText);
-            resolve(response);
+            // Backend may return either { fileName } or { success, fileName, ... }
+            if (
+              typeof response?.fileName === "string" &&
+              response.fileName.length > 0
+            ) {
+              resolve({ ...response, success: response.success ?? true });
+              return;
+            }
+            resolve({ ...response, success: response.success ?? false });
           } catch (error) {
             resolve({
               success: false,
@@ -83,7 +91,7 @@ export const uploadFile = async (
       xhr.open("POST", `${config.apiBaseUrl}/api/upload-file/${folder}`);
 
       // Add authorization header if token exists
-      const token = localStorage.getItem("auth-token");
+      const token = localStorage.getItem(config.tokenKey);
       if (token) {
         xhr.setRequestHeader("Authorization", `Bearer ${token}`);
       }
@@ -107,7 +115,7 @@ export const uploadFile = async (
  */
 export const uploadMultipleFiles = async (
   files: File[],
-  options: FileUploadOptions
+  options: FileUploadOptions,
 ): Promise<FileUploadResponse[]> => {
   const results: FileUploadResponse[] = [];
 
@@ -127,7 +135,7 @@ export const uploadMultipleFiles = async (
  */
 export const uploadMultipleFilesParallel = async (
   files: File[],
-  options: FileUploadOptions
+  options: FileUploadOptions,
 ): Promise<FileUploadResponse[]> => {
   const uploadPromises = files.map((file) => uploadFile(file, options));
   return Promise.all(uploadPromises);
@@ -149,7 +157,7 @@ export const validateFile = (
     "image/gif",
     "video/mp4",
     "video/webm",
-  ]
+  ],
 ): { valid: boolean; error?: string } => {
   if (file.size > maxSize) {
     return {
@@ -189,7 +197,7 @@ export const formatFileSize = (bytes: number): string => {
  * @returns Promise with image dimensions
  */
 export const getImageDimensions = (
-  file: File
+  file: File,
 ): Promise<{ width: number; height: number }> => {
   return new Promise((resolve, reject) => {
     const img = new Image();

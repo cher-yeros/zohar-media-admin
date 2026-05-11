@@ -3,19 +3,6 @@ import { z } from "zod";
 // User Schemas
 export const userRoleSchema = z.enum(["ADMIN", "MANAGER", "EDITOR"]);
 
-export const createUserSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  first_name: z.string().min(1, "First name is required"),
-  last_name: z.string().min(1, "Last name is required"),
-  role: userRoleSchema,
-  avatar_url: z
-    .string()
-    .url("Please enter a valid URL")
-    .optional()
-    .or(z.literal("")),
-});
-
 export const updateUserSchema = z.object({
   email: z.string().email("Please enter a valid email address").optional(),
   first_name: z.string().min(1, "First name is required").optional(),
@@ -33,6 +20,23 @@ export const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(1, "Password is required"),
 });
+
+export const profileSelfSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  first_name: z.string().min(1, "First name is required"),
+  last_name: z.string().min(1, "Last name is required"),
+});
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    newPassword: z.string().min(8, "Use at least 8 characters"),
+    confirmPassword: z.string().min(1, "Confirm your new password"),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
 
 // Team Member Schemas
 export const teamMemberStatusSchema = z.enum(["ACTIVE", "INACTIVE"]);
@@ -253,9 +257,8 @@ export const updateSystemSettingsSchema = z.object({
 // Form-specific schemas for existing components
 export const addMediaFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
-  youtubeUrl: z.string().url("Please enter a valid YouTube URL"),
   description: z.string().optional(),
-  category: z.string().min(1, "Category is required"),
+  category: z.string().optional(),
   tags: z.array(z.string()).optional(),
   currentTag: z.string().optional(),
 });
@@ -273,9 +276,10 @@ export const addTestimonyFormSchema = z.object({
 });
 
 // Type exports for TypeScript
-export type CreateUserFormData = z.infer<typeof createUserSchema>;
 export type UpdateUserFormData = z.infer<typeof updateUserSchema>;
 export type LoginFormData = z.infer<typeof loginSchema>;
+export type ProfileSelfFormData = z.infer<typeof profileSelfSchema>;
+export type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
 export type CreateTeamMemberFormData = z.infer<typeof createTeamMemberSchema>;
 export type UpdateTeamMemberFormData = z.infer<typeof updateTeamMemberSchema>;
 export type CreatePortfolioItemFormData = z.infer<

@@ -19,8 +19,18 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { sampleSettingsStats, SettingsStats } from "@/data/sample-data";
 import { useToast } from "@/hooks/use-toast";
+import {
+  UPDATE_BUSINESS_STATISTICS,
+  UPDATE_SYSTEM_SETTINGS,
+} from "@/lib/graphql/mutations";
+import {
+  GET_ACTIVITY_LOGS,
+  GET_BUSINESS_STATISTICS,
+  GET_SYSTEM_SETTINGS,
+} from "@/lib/graphql/queries";
+import { formatDateTime } from "@/lib/utils";
+import { useMutation, useQuery } from "@apollo/client";
 import {
   BarChart3,
   Calendar,
@@ -33,62 +43,173 @@ import {
   Target,
   Users,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+
+type Theme = "LIGHT" | "DARK";
 
 export function Settings() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [stats, setStats] = useState<SettingsStats>(sampleSettingsStats);
-  const [isEditing, setIsEditing] = useState(false);
   const { toast } = useToast();
+  const [isEditing, setIsEditing] = useState(false);
 
-  // Form state for editing stats
-  const [formData, setFormData] = useState({
-    completedProjects: stats.completedProjects,
-    happyClients: stats.happyClients,
-    perspectiveClients: stats.perspectiveClients,
-    totalRevenue: stats.totalRevenue || 0,
-    averageProjectValue: stats.averageProjectValue || 0,
+  const {
+    data: statsData,
+    loading: statsLoading,
+    refetch: refetchStats,
+  } = useQuery(GET_BUSINESS_STATISTICS);
+  const {
+    data: systemData,
+    loading: systemLoading,
+    refetch: refetchSystem,
+  } = useQuery(GET_SYSTEM_SETTINGS);
+  const { data: logsData, loading: logsLoading } = useQuery(GET_ACTIVITY_LOGS, {
+    variables: { limit: 15, offset: 0 },
   });
 
-  // Simulate loading state
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
+  const [updateBusinessStatistics, { loading: savingStats }] = useMutation(
+    UPDATE_BUSINESS_STATISTICS,
+  );
+  const [updateSystemSettings, { loading: savingSystem }] = useMutation(
+    UPDATE_SYSTEM_SETTINGS,
+  );
 
-    return () => clearTimeout(timer);
+  const stats = statsData?.businessStatistics;
+  const settings = systemData?.systemSettings;
+
+  const [statsForm, setStatsForm] = useState({
+    completedProjects: 0,
+    happyClients: 0,
+    perspectiveClients: 0,
+    totalRevenue: 0,
+    averageProjectValue: 0,
+    isPublic: true,
+    autoUpdate: true,
+  });
+
+  const [businessForm, setBusinessForm] = useState({
+    businessName: "",
+    businessDescription: "",
+    industry: "",
+    websiteUrl: "",
+    contactEmail: "",
+    theme: "LIGHT" as Theme,
+  });
+
+  const beginEdit = useCallback(() => {
+    if (stats) {
+      setStatsForm({
+        completedProjects: stats.completed_projects,
+        happyClients: stats.happy_clients,
+        perspectiveClients: stats.perspective_clients,
+        totalRevenue: Number(stats.total_revenue) || 0,
+        averageProjectValue: Number(stats.average_project_value) || 0,
+        isPublic: stats.is_public ?? true,
+        autoUpdate: stats.auto_update ?? true,
+      });
+    }
+    if (settings) {
+      setBusinessForm({
+        businessName: settings.business_name ?? "",
+        businessDescription: settings.business_description ?? "",
+        industry: settings.industry ?? "",
+        websiteUrl: settings.website_url ?? "",
+        contactEmail: settings.contact_email ?? "",
+        theme: (settings.theme === "DARK" ? "DARK" : "LIGHT") as Theme,
+      });
+    }
+    setIsEditing(true);
+  }, [stats, settings]);
+
+  const cancelEdit = useCallback(() => {
+    setIsEditing(false);
   }, []);
 
-  const handleSaveStats = () => {
-    setStats({
-      ...stats,
-      ...formData,
-    });
-    setIsEditing(false);
-    toast({
-      title: "Settings updated",
-      description: "Your statistics have been updated successfully.",
-    });
+  const handleSave = async () => {
+    try {
+      const statsResult = await updateBusinessStatistics({
+        variables: {
+          completed_projects: statsForm.completedProjects,
+          happy_clients: statsForm.happyClients,
+          perspective_clients: statsForm.perspectiveClients,
+          total_revenue: statsForm.totalRevenue,
+          average_project_value: statsForm.averageProjectValue,
+          is_public: statsForm.isPublic,
+          auto_update: statsForm.autoUpdate,
+        },
+      });
+
+      const sysResult = await updateSystemSettings({
+        variables: {
+          business_name: businessForm.businessName.trim() || undefined,
+          business_description:
+            businessForm.businessDescription.trim() || undefined,
+          industry: businessForm.industry.trim() || undefined,
+          website_url: businessForm.websiteUrl.trim() || undefined,
+          contact_email: businessForm.contactEmail.trim() || undefined,
+          theme: businessForm.theme,
+        },
+      });
+
+      if (
+        statsResult.data?.updateBusinessStatistics?.success &&
+        sysResult.data?.updateSystemSettings?.success
+      ) {
+        await Promise.all([refetchStats(), refetchSystem()]);
+        setIsEditing(false);
+        toast({
+          title: "Settings saved",
+          description: "Business statistics and information were updated.",
+        });
+      } else {
+        throw new Error(
+          statsResult.data?.updateBusinessStatistics?.message ||
+            sysResult.data?.updateSystemSettings?.message ||
+            "Save failed",
+        );
+      }
+    } catch (e) {
+      toast({
+        title: "Error",
+        description:
+          e instanceof Error ? e.message : "Could not save settings.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleResetStats = () => {
-    setFormData({
-      completedProjects: stats.completedProjects,
-      happyClients: stats.happyClients,
-      perspectiveClients: stats.perspectiveClients,
-      totalRevenue: stats.totalRevenue || 0,
-      averageProjectValue: stats.averageProjectValue || 0,
-    });
-    setIsEditing(false);
-  };
+  const loading = statsLoading || systemLoading;
+  const saving = savingStats || savingSystem;
 
-  if (isLoading) {
+  if (loading || !stats || !settings) {
     return <Loading type="page" />;
   }
 
+  const displayStats = isEditing
+    ? statsForm
+    : {
+        completedProjects: stats.completed_projects,
+        happyClients: stats.happy_clients,
+        perspectiveClients: stats.perspective_clients,
+        totalRevenue: Number(stats.total_revenue) || 0,
+        averageProjectValue: Number(stats.average_project_value) || 0,
+        isPublic: stats.is_public,
+        autoUpdate: stats.auto_update,
+      };
+
+  const displayBusiness = isEditing
+    ? businessForm
+    : {
+        businessName: settings.business_name,
+        businessDescription: settings.business_description ?? "",
+        industry: settings.industry ?? "",
+        websiteUrl: settings.website_url ?? "",
+        contactEmail: settings.contact_email ?? "",
+        theme: (settings.theme === "DARK" ? "DARK" : "LIGHT") as Theme,
+      };
+
+  const activityItems = logsData?.activityLogs?.items ?? [];
+
   return (
     <div className="space-y-6 fade-in">
-      {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
@@ -99,17 +220,17 @@ export function Settings() {
         <div className="flex space-x-2">
           {isEditing ? (
             <>
-              <Button variant="outline" onClick={handleResetStats}>
+              <Button variant="outline" onClick={cancelEdit} disabled={saving}>
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Cancel
               </Button>
-              <Button onClick={handleSaveStats}>
+              <Button onClick={handleSave} disabled={saving}>
                 <Save className="h-4 w-4 mr-2" />
-                Save Changes
+                {saving ? "Saving…" : "Save Changes"}
               </Button>
             </>
           ) : (
-            <Button className="shadow-sm" onClick={() => setIsEditing(true)}>
+            <Button className="shadow-sm" onClick={beginEdit}>
               <SettingsIcon className="h-4 w-4 mr-2" />
               Edit Settings
             </Button>
@@ -117,7 +238,6 @@ export function Settings() {
         </div>
       </div>
 
-      {/* Main Statistics Cards */}
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="relative overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -131,17 +251,18 @@ export function Settings() {
               {isEditing ? (
                 <Input
                   type="number"
-                  value={formData.completedProjects}
+                  min={0}
+                  value={statsForm.completedProjects}
                   onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      completedProjects: parseInt(e.target.value) || 0,
+                    setStatsForm({
+                      ...statsForm,
+                      completedProjects: parseInt(e.target.value, 10) || 0,
                     })
                   }
                   className="text-3xl font-bold border-none p-0 h-auto shadow-none focus-visible:ring-0"
                 />
               ) : (
-                stats.completedProjects.toLocaleString()
+                displayStats.completedProjects.toLocaleString()
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -161,17 +282,18 @@ export function Settings() {
               {isEditing ? (
                 <Input
                   type="number"
-                  value={formData.happyClients}
+                  min={0}
+                  value={statsForm.happyClients}
                   onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      happyClients: parseInt(e.target.value) || 0,
+                    setStatsForm({
+                      ...statsForm,
+                      happyClients: parseInt(e.target.value, 10) || 0,
                     })
                   }
                   className="text-3xl font-bold border-none p-0 h-auto shadow-none focus-visible:ring-0"
                 />
               ) : (
-                stats.happyClients.toLocaleString()
+                displayStats.happyClients.toLocaleString()
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -193,17 +315,18 @@ export function Settings() {
               {isEditing ? (
                 <Input
                   type="number"
-                  value={formData.perspectiveClients}
+                  min={0}
+                  value={statsForm.perspectiveClients}
                   onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      perspectiveClients: parseInt(e.target.value) || 0,
+                    setStatsForm({
+                      ...statsForm,
+                      perspectiveClients: parseInt(e.target.value, 10) || 0,
                     })
                   }
                   className="text-3xl font-bold border-none p-0 h-auto shadow-none focus-visible:ring-0"
                 />
               ) : (
-                stats.perspectiveClients.toLocaleString()
+                displayStats.perspectiveClients.toLocaleString()
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -214,7 +337,6 @@ export function Settings() {
         </Card>
       </div>
 
-      {/* Additional Statistics */}
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
@@ -231,18 +353,20 @@ export function Settings() {
                 {isEditing ? (
                   <Input
                     type="number"
-                    value={formData.totalRevenue}
+                    min={0}
+                    step="0.01"
+                    value={statsForm.totalRevenue}
                     onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        totalRevenue: parseInt(e.target.value) || 0,
+                      setStatsForm({
+                        ...statsForm,
+                        totalRevenue: parseFloat(e.target.value) || 0,
                       })
                     }
-                    className="text-right w-32"
+                    className="text-right w-40"
                   />
                 ) : (
                   <span className="text-lg font-bold">
-                    ${stats.totalRevenue?.toLocaleString() || "0"}
+                    ${displayStats.totalRevenue.toLocaleString()}
                   </span>
                 )}
               </div>
@@ -253,18 +377,20 @@ export function Settings() {
                 {isEditing ? (
                   <Input
                     type="number"
-                    value={formData.averageProjectValue}
+                    min={0}
+                    step="0.01"
+                    value={statsForm.averageProjectValue}
                     onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        averageProjectValue: parseInt(e.target.value) || 0,
+                      setStatsForm({
+                        ...statsForm,
+                        averageProjectValue: parseFloat(e.target.value) || 0,
                       })
                     }
-                    className="text-right w-32"
+                    className="text-right w-40"
                   />
                 ) : (
                   <span className="text-lg font-bold">
-                    ${stats.averageProjectValue?.toLocaleString() || "0"}
+                    ${displayStats.averageProjectValue.toLocaleString()}
                   </span>
                 )}
               </div>
@@ -273,9 +399,9 @@ export function Settings() {
               <span className="text-sm font-medium">Revenue per Client</span>
               <span className="text-lg font-bold">
                 $
-                {stats.totalRevenue && stats.happyClients > 0
+                {displayStats.totalRevenue > 0 && displayStats.happyClients > 0
                   ? Math.round(
-                      stats.totalRevenue / stats.happyClients,
+                      displayStats.totalRevenue / displayStats.happyClients,
                     ).toLocaleString()
                   : "0"}
               </span>
@@ -295,21 +421,23 @@ export function Settings() {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Project Success Rate</span>
               <Badge variant="default" className="text-sm">
-                {stats.completedProjects > 0 ? "100%" : "0%"}
+                {displayStats.completedProjects > 0 ? "100%" : "0%"}
               </Badge>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Client Satisfaction</span>
               <Badge variant="default" className="text-sm">
-                {stats.happyClients > 0 ? "100%" : "0%"}
+                {displayStats.happyClients > 0 ? "100%" : "0%"}
               </Badge>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Conversion Rate</span>
               <Badge variant="outline" className="text-sm">
-                {stats.perspectiveClients > 0
+                {displayStats.perspectiveClients > 0
                   ? Math.round(
-                      (stats.happyClients / stats.perspectiveClients) * 100,
+                      (displayStats.happyClients /
+                        displayStats.perspectiveClients) *
+                        100,
                     ) + "%"
                   : "0%"}
               </Badge>
@@ -317,7 +445,7 @@ export function Settings() {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Growth Potential</span>
               <Badge variant="secondary" className="text-sm">
-                {stats.perspectiveClients > stats.happyClients
+                {displayStats.perspectiveClients > displayStats.happyClients
                   ? "High"
                   : "Stable"}
               </Badge>
@@ -326,7 +454,6 @@ export function Settings() {
         </Card>
       </div>
 
-      {/* Business Information */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
@@ -334,32 +461,45 @@ export function Settings() {
             <span>Business Information</span>
           </CardTitle>
           <CardDescription>
-            Update your business details and preferences
+            Update your business details and preferences (saved to the database)
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <Label htmlFor="businessName">Business Name</Label>
               <Input
                 id="businessName"
-                defaultValue="Zohar Media"
+                value={
+                  isEditing
+                    ? businessForm.businessName
+                    : displayBusiness.businessName
+                }
+                onChange={(e) =>
+                  setBusinessForm({
+                    ...businessForm,
+                    businessName: e.target.value,
+                  })
+                }
                 disabled={!isEditing}
               />
             </div>
             <div>
               <Label htmlFor="industry">Industry</Label>
-              <Select disabled={!isEditing}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select industry" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="photography">Photography</SelectItem>
-                  <SelectItem value="videography">Videography</SelectItem>
-                  <SelectItem value="media">Media Production</SelectItem>
-                  <SelectItem value="marketing">Marketing</SelectItem>
-                </SelectContent>
-              </Select>
+              <Input
+                id="industry"
+                placeholder="e.g. photography, media production"
+                value={
+                  isEditing ? businessForm.industry : displayBusiness.industry
+                }
+                onChange={(e) =>
+                  setBusinessForm({
+                    ...businessForm,
+                    industry: e.target.value,
+                  })
+                }
+                disabled={!isEditing}
+              />
             </div>
           </div>
 
@@ -367,18 +507,40 @@ export function Settings() {
             <Label htmlFor="description">Business Description</Label>
             <Textarea
               id="description"
-              defaultValue="Professional media production company specializing in photography, videography, and creative content for businesses and individuals."
+              value={
+                isEditing
+                  ? businessForm.businessDescription
+                  : displayBusiness.businessDescription
+              }
+              onChange={(e) =>
+                setBusinessForm({
+                  ...businessForm,
+                  businessDescription: e.target.value,
+                })
+              }
               disabled={!isEditing}
               rows={3}
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <Label htmlFor="website">Website</Label>
               <Input
                 id="website"
-                defaultValue="https://zoharmedia.net"
+                type="url"
+                placeholder="https://"
+                value={
+                  isEditing
+                    ? businessForm.websiteUrl
+                    : displayBusiness.websiteUrl
+                }
+                onChange={(e) =>
+                  setBusinessForm({
+                    ...businessForm,
+                    websiteUrl: e.target.value,
+                  })
+                }
                 disabled={!isEditing}
               />
             </div>
@@ -386,9 +548,44 @@ export function Settings() {
               <Label htmlFor="email">Contact Email</Label>
               <Input
                 id="email"
-                defaultValue="contact@zoharmedia.net"
+                type="email"
+                value={
+                  isEditing
+                    ? businessForm.contactEmail
+                    : displayBusiness.contactEmail
+                }
+                onChange={(e) =>
+                  setBusinessForm({
+                    ...businessForm,
+                    contactEmail: e.target.value,
+                  })
+                }
                 disabled={!isEditing}
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="theme">Admin theme preference</Label>
+              <Select
+                value={isEditing ? businessForm.theme : displayBusiness.theme}
+                onValueChange={(v) =>
+                  setBusinessForm({
+                    ...businessForm,
+                    theme: v as Theme,
+                  })
+                }
+                disabled={!isEditing}
+              >
+                <SelectTrigger id="theme">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="LIGHT">Light</SelectItem>
+                  <SelectItem value="DARK">Dark</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -400,7 +597,14 @@ export function Settings() {
                   Show statistics on your public website
                 </p>
               </div>
-              <Switch id="publicStats" defaultChecked />
+              <Switch
+                id="publicStats"
+                checked={isEditing ? statsForm.isPublic : displayStats.isPublic}
+                onCheckedChange={(checked) =>
+                  setStatsForm({ ...statsForm, isPublic: checked })
+                }
+                disabled={!isEditing}
+              />
             </div>
             <div className="flex items-center justify-between">
               <div>
@@ -409,51 +613,82 @@ export function Settings() {
                   Automatically update statistics from completed projects
                 </p>
               </div>
-              <Switch id="autoUpdate" defaultChecked />
+              <Switch
+                id="autoUpdate"
+                checked={
+                  isEditing ? statsForm.autoUpdate : displayStats.autoUpdate
+                }
+                onCheckedChange={(checked) =>
+                  setStatsForm({ ...statsForm, autoUpdate: checked })
+                }
+                disabled={!isEditing}
+              />
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Recent Activity */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Calendar className="h-5 w-5" />
             <span>Recent Activity</span>
           </CardTitle>
-          <CardDescription>Latest updates to your statistics</CardDescription>
+          <CardDescription>
+            Latest actions from the activity log
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center space-x-3">
-              <div className="h-2 w-2 bg-green-500 rounded-full" />
-              <div className="flex-1">
-                <p className="text-sm font-medium">Statistics updated</p>
-                <p className="text-xs text-muted-foreground">
-                  Last updated 2 hours ago
-                </p>
-              </div>
+          {logsLoading ? (
+            <p className="text-sm text-muted-foreground">Loading activity…</p>
+          ) : activityItems.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No activity recorded yet.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {activityItems.map(
+                (
+                  log: {
+                    id: string;
+                    action: string;
+                    entity_type: string;
+                    description?: string | null;
+                    createdAt: string;
+                    user?: {
+                      first_name?: string | null;
+                      last_name?: string | null;
+                    } | null;
+                  },
+                  index: number,
+                ) => (
+                  <div key={log.id} className="flex items-center space-x-3">
+                    <div
+                      className={`h-2 w-2 rounded-full shrink-0 ${
+                        index % 3 === 0
+                          ? "bg-green-500"
+                          : index % 3 === 1
+                            ? "bg-blue-500"
+                            : "bg-yellow-500"
+                      }`}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {log.description ||
+                          `${log.action} • ${log.entity_type}`}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDateTime(log.createdAt)}
+                        {log.user
+                          ? ` · ${log.user.first_name ?? ""} ${log.user.last_name ?? ""}`.trim()
+                          : ""}
+                      </p>
+                    </div>
+                  </div>
+                ),
+              )}
             </div>
-            <div className="flex items-center space-x-3">
-              <div className="h-2 w-2 bg-blue-500 rounded-full" />
-              <div className="flex-1">
-                <p className="text-sm font-medium">New project completed</p>
-                <p className="text-xs text-muted-foreground">
-                  Wedding photography project added 1 day ago
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="h-2 w-2 bg-yellow-500 rounded-full" />
-              <div className="flex-1">
-                <p className="text-sm font-medium">Client feedback received</p>
-                <p className="text-xs text-muted-foreground">
-                  New testimonial added 3 days ago
-                </p>
-              </div>
-            </div>
-          </div>
+          )}
         </CardContent>
       </Card>
     </div>

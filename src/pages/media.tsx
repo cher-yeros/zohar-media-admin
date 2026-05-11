@@ -18,7 +18,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MediaItem, sampleMedia } from "@/data/sample-data";
+import { Loading } from "@/components/ui/loading";
+import { useToast } from "@/hooks/use-toast";
+import { DELETE_MEDIA_ITEM } from "@/lib/graphql/mutations";
+import { GET_MEDIA_ITEMS } from "@/lib/graphql/queries";
 import { formatDate } from "@/lib/utils";
 import {
   Edit,
@@ -32,35 +35,110 @@ import {
   Video,
 } from "lucide-react";
 import { useState } from "react";
+import { useMutation, useQuery } from "@apollo/client";
+
+type MediaType = "IMAGE" | "VIDEO";
+type MediaItem = {
+  id: string;
+  title: string;
+  type: MediaType;
+  url: string;
+  thumbnail_url?: string | null;
+  file_size?: string | null;
+  dimensions?: string | null;
+  duration?: string | null;
+  upload_date: string;
+  tags: { id: string; tag_name: string }[];
+};
 
 export function Media() {
-  const [media, setMedia] = useState(sampleMedia);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
+  const { toast } = useToast();
+
+  const {
+    data,
+    loading,
+    refetch: refetchMedia,
+  } = useQuery(GET_MEDIA_ITEMS, {
+    variables: { limit: 200, offset: 0 },
+  });
+
+  const [deleteMediaItem, { loading: deleting }] =
+    useMutation(DELETE_MEDIA_ITEM);
+
+  const media: MediaItem[] = data?.mediaItems?.items ?? [];
 
   const filteredMedia = media.filter((item) => {
     const matchesSearch =
       item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.tags.some((tag) =>
-        tag.toLowerCase().includes(searchTerm.toLowerCase())
+        tag.tag_name.toLowerCase().includes(searchTerm.toLowerCase()),
       );
-    const matchesType = typeFilter === "all" || item.type === typeFilter;
+    const matchesType =
+      typeFilter === "all" ||
+      item.type === typeFilter ||
+      (typeFilter === "image" && item.type === "IMAGE") ||
+      (typeFilter === "video" && item.type === "VIDEO");
 
     return matchesSearch && matchesType;
   });
 
-  const handleDelete = (mediaId: string) => {
-    setMedia((prev) => prev.filter((item) => item.id !== mediaId));
+  const handleDelete = async (mediaId: string) => {
+    try {
+      const result = await deleteMediaItem({ variables: { id: mediaId } });
+      if (result.data?.deleteMediaItem?.success) {
+        await refetchMedia();
+        toast({ title: "Deleted", description: "Media item removed." });
+      } else {
+        throw new Error(
+          result.data?.deleteMediaItem?.message ?? "Failed to delete",
+        );
+      }
+    } catch (e) {
+      toast({
+        title: "Error",
+        description: e instanceof Error ? e.message : "Failed to delete",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleMediaAdded = (newMedia: MediaItem) => {
-    setMedia((prev) => [newMedia, ...prev]);
+  const handleMediaAdded = (_newMedia: MediaItem) => {
+    refetchMedia();
   };
 
   const getTypeIcon = (type: string) => {
-    return type === "video" ? Video : ImageIcon;
+    return type === "VIDEO" ? Video : ImageIcon;
   };
+
+  /** Grid / card preview: <img> cannot decode video URLs; use <video> for VIDEO. */
+  function MediaCardPreview({ item }: { item: MediaItem }) {
+    if (item.type === "VIDEO") {
+      return (
+        <video
+          src={item.url}
+          muted
+          playsInline
+          preload="metadata"
+          className="h-full w-full object-cover"
+          aria-label={item.title}
+        />
+      );
+    }
+    return (
+      <img
+        src={item.thumbnail_url ?? item.url}
+        alt={item.title}
+        className="h-full w-full object-cover"
+      />
+    );
+  }
+
+  if (loading) {
+    return <Loading type="page" />;
+  }
 
   return (
     <div className="space-y-6 fade-in">
@@ -97,7 +175,7 @@ export function Media() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              {media.filter((m) => m.type === "image").length}
+              {media.filter((m) => m.type === "IMAGE").length}
             </div>
           </CardContent>
         </Card>
@@ -107,7 +185,7 @@ export function Media() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-600">
-              {media.filter((m) => m.type === "video").length}
+              {media.filter((m) => m.type === "VIDEO").length}
             </div>
           </CardContent>
         </Card>
@@ -160,12 +238,8 @@ export function Media() {
           return (
             <Card key={item.id} className="group card-hover overflow-hidden">
               <div className="relative aspect-video bg-muted">
-                <img
-                  src={item.thumbnail}
-                  alt={item.title}
-                  className="object-cover w-full h-full"
-                />
-                {item.type === "video" && (
+                <MediaCardPreview item={item} />
+                {item.type === "VIDEO" && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/20">
                     <Play className="h-8 w-8 text-white" />
                   </div>
@@ -176,7 +250,9 @@ export function Media() {
                     className="flex items-center space-x-1"
                   >
                     <TypeIcon className="h-3 w-3" />
-                    <span className="capitalize">{item.type}</span>
+                    <span className="capitalize">
+                      {item.type === "VIDEO" ? "video" : "image"}
+                    </span>
                   </Badge>
                 </div>
                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-2">
@@ -194,20 +270,33 @@ export function Media() {
                       <DialogHeader>
                         <DialogTitle>{selectedMedia?.title}</DialogTitle>
                         <DialogDescription>
-                          {selectedMedia?.type === "image" ? "Image" : "Video"}{" "}
+                          {selectedMedia?.type === "IMAGE" ? "Image" : "Video"}{" "}
                           • Uploaded{" "}
                           {selectedMedia &&
-                            formatDate(selectedMedia.uploadDate)}
+                            formatDate(selectedMedia.upload_date)}
                         </DialogDescription>
                       </DialogHeader>
                       {selectedMedia && (
                         <div className="space-y-4">
-                          <div className="aspect-video bg-muted rounded-lg overflow-hidden">
-                            <img
-                              src={selectedMedia.url}
-                              alt={selectedMedia.title}
-                              className="object-cover w-full h-full"
-                            />
+                          <div className="aspect-video bg-black rounded-lg overflow-hidden">
+                            {selectedMedia.type === "VIDEO" ? (
+                              <video
+                                key={selectedMedia.id}
+                                src={selectedMedia.url}
+                                controls
+                                playsInline
+                                preload="metadata"
+                                className="h-full w-full object-contain"
+                              >
+                                Your browser does not support the video tag.
+                              </video>
+                            ) : (
+                              <img
+                                src={selectedMedia.url}
+                                alt={selectedMedia.title}
+                                className="h-full w-full object-cover"
+                              />
+                            )}
                           </div>
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
@@ -219,25 +308,27 @@ export function Media() {
                             <div>
                               <label className="font-medium">Type</label>
                               <p className="text-muted-foreground capitalize">
-                                {selectedMedia.type}
+                                {selectedMedia.type === "VIDEO"
+                                  ? "video"
+                                  : "image"}
                               </p>
                             </div>
                             <div>
                               <label className="font-medium">Size</label>
                               <p className="text-muted-foreground">
-                                {selectedMedia.size}
+                                {selectedMedia.file_size ?? "—"}
                               </p>
                             </div>
                             <div>
                               <label className="font-medium">
-                                {selectedMedia.type === "video"
+                                {selectedMedia.type === "VIDEO"
                                   ? "Duration"
                                   : "Dimensions"}
                               </label>
                               <p className="text-muted-foreground">
-                                {selectedMedia.type === "video"
-                                  ? selectedMedia.duration
-                                  : selectedMedia.dimensions}
+                                {selectedMedia.type === "VIDEO"
+                                  ? (selectedMedia.duration ?? "—")
+                                  : (selectedMedia.dimensions ?? "—")}
                               </p>
                             </div>
                           </div>
@@ -245,8 +336,8 @@ export function Media() {
                             <label className="font-medium">Tags</label>
                             <div className="flex flex-wrap gap-1 mt-1">
                               {selectedMedia.tags.map((tag) => (
-                                <Badge key={tag} variant="outline">
-                                  {tag}
+                                <Badge key={tag.id} variant="outline">
+                                  {tag.tag_name}
                                 </Badge>
                               ))}
                             </div>
@@ -262,6 +353,7 @@ export function Media() {
                     size="sm"
                     variant="destructive"
                     onClick={() => handleDelete(item.id)}
+                    disabled={deleting}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -272,13 +364,13 @@ export function Media() {
                   {item.title}
                 </h3>
                 <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-                  <span>{item.size}</span>
-                  <span>{formatDate(item.uploadDate)}</span>
+                  <span>{item.file_size ?? "—"}</span>
+                  <span>{formatDate(item.upload_date)}</span>
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {item.tags.slice(0, 2).map((tag) => (
-                    <Badge key={tag} variant="outline" className="text-xs">
-                      {tag}
+                    <Badge key={tag.id} variant="outline" className="text-xs">
+                      {tag.tag_name}
                     </Badge>
                   ))}
                   {item.tags.length > 2 && (

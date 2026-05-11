@@ -48,19 +48,17 @@ export const GET_TEAM_MEMBERS = gql`
       join_date
       status
       createdAt
-      updatedAt
+
       skills {
         id
         skill_name
         createdAt
-        updatedAt
       }
       social_links {
         id
         platform
         url
         createdAt
-        updatedAt
       }
     }
   }
@@ -79,19 +77,17 @@ export const GET_TEAM_MEMBER = gql`
       join_date
       status
       createdAt
-      updatedAt
+      updated_at
       skills {
         id
         skill_name
         createdAt
-        updatedAt
       }
       social_links {
         id
         platform
         url
         createdAt
-        updatedAt
       }
     }
   }

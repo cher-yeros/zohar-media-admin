@@ -13,6 +13,7 @@ import {
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { logoutUser } from "@/redux/slices/authSlice";
 import { config } from "@/lib/config";
+import { LOGO_PATH, SITE_NAME } from "@/lib/branding";
 
 interface AuthLayoutProps {
   children: ReactNode;
@@ -34,11 +35,15 @@ export function AuthLayout({ children }: AuthLayoutProps) {
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center space-x-4">
-            <Link to="/" className="flex items-center space-x-2">
-              <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center">
-                <User className="h-4 w-4 text-primary-foreground" />
-              </div>
-              <span className="text-xl font-bold">Zohar Media</span>
+            <Link to="/" className="flex items-center gap-2">
+              <img
+                src={LOGO_PATH}
+                alt=""
+                width={32}
+                height={32}
+                className="h-8 w-8 shrink-0 object-contain"
+              />
+              <span className="text-xl font-bold">{SITE_NAME}</span>
             </Link>
           </div>
 
@@ -83,14 +88,9 @@ export function AuthLayout({ children }: AuthLayoutProps) {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <div className="flex items-center space-x-2">
-                <Button variant="ghost" asChild>
-                  <Link to="/login">Sign in</Link>
-                </Button>
-                <Button asChild>
-                  <Link to="/register">Sign up</Link>
-                </Button>
-              </div>
+              <Button variant="ghost" asChild>
+                <Link to="/login">Sign in</Link>
+              </Button>
             )}
           </div>
         </div>

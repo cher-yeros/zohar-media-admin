@@ -31,7 +31,6 @@ export default function MyApolloProvider({ children }: MyApolloProviderProps) {
 
       // Optional: in dev, you might want to log network errors
       if (import.meta.env.DEV && networkError) {
-        // eslint-disable-next-line no-console
         console.warn("GraphQL network error:", networkError);
       }
     });
@@ -62,7 +61,7 @@ export default function MyApolloProvider({ children }: MyApolloProviderProps) {
           fetchPolicy: "no-cache",
         },
       },
-      connectToDevTools: true,
+      connectToDevTools: Boolean(import.meta.env.DEV),
     });
   }, []);
 

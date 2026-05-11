@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -25,11 +25,6 @@ import {
   FolderOpen,
   ArrowUpRight,
 } from "lucide-react";
-import {
-  sampleInquiries,
-  sampleAnalytics,
-  inquiryTrendData,
-} from "@/data/sample-data";
 import { formatDate } from "@/lib/utils";
 import {
   Area,
@@ -41,83 +36,145 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { Loading } from "@/components/ui/loading";
-import { useToast } from "@/hooks/use-toast";
 import { AddMedia } from "@/components/forms/add-media";
 import { AddTestimony } from "@/components/forms/add-testimony";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Link } from "react-router-dom";
+import { useQuery } from "@apollo/client";
+import {
+  GET_ANALYTICS_DATA,
+  GET_BUSINESS_STATISTICS,
+  GET_INQUIRIES,
+  GET_TESTIMONIALS,
+} from "@/lib/graphql/queries";
+
+type InquiryRow = {
+  id: string;
+  name: string;
+  email: string;
+  subject: string;
+  inquiry_date: string;
+  status: string;
+};
 
 export function Dashboard() {
-  const [isLoading, setIsLoading] = useState(true);
-  const { toast } = useToast();
-  const recentInquiries = sampleInquiries.slice(0, 5);
+  const { data: statsData, loading: statsLoading } = useQuery(
+    GET_BUSINESS_STATISTICS,
+  );
+  const { data: analyticsData, loading: analyticsLoading } = useQuery(
+    GET_ANALYTICS_DATA,
+    { variables: { limit: 30, offset: 0 } },
+  );
+  const { data: recentInquiriesData, loading: recentLoading } = useQuery(
+    GET_INQUIRIES,
+    { variables: { limit: 5, offset: 0 } },
+  );
+  const { data: unreadInquiriesData, loading: unreadLoading } = useQuery(
+    GET_INQUIRIES,
+    { variables: { status: "UNREAD", limit: 1, offset: 0 } },
+  );
+  const { data: pendingTestimonialsData, loading: pendingLoading } = useQuery(
+    GET_TESTIMONIALS,
+    { variables: { status: "PENDING", limit: 1, offset: 0 } },
+  );
 
-  // Simulate loading state
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
+  const loading =
+    statsLoading ||
+    analyticsLoading ||
+    recentLoading ||
+    unreadLoading ||
+    pendingLoading;
 
-    return () => clearTimeout(timer);
-  }, []);
+  const stats = statsData?.businessStatistics;
+  const analyticsRows: {
+    date: string;
+    inquiries_this_month: number;
+    visitors_today: number;
+    visitors_this_month: number;
+    visitor_trend: number;
+    media_total_views: number;
+  }[] = analyticsData?.analyticsData?.items ?? [];
+  const latestAnalytics = analyticsRows[0];
 
-  const handleQuickAction = (action: string) => {
-    toast({
-      title: "Action triggered",
-      description: `${action} functionality would be implemented here.`,
-    });
-  };
+  const recentInquiries: InquiryRow[] =
+    recentInquiriesData?.inquiries?.items ?? [];
+  const unreadTotal = unreadInquiriesData?.inquiries?.total ?? 0;
+  const pendingTestimonialsTotal =
+    pendingTestimonialsData?.testimonials?.total ?? 0;
 
-  if (isLoading) {
-    return <Loading type="page" />;
-  }
-  const stats = [
-    {
-      title: "Completed Projects",
-      value: 230,
-      change: "+15.2%",
-      icon: CheckCircle,
-      description: "Successfully delivered",
-    },
-    {
-      title: "Happy Clients",
-      value: "1,068",
-      change: "+8.7%",
-      icon: Users,
-      description: "Satisfied customers",
-    },
-    {
-      title: "Perspective Clients",
-      value: 230,
-      change: "+12.3%",
-      icon: Eye,
-      description: "Potential customers",
-    },
-    {
-      title: "Website Visitors",
-      value: sampleAnalytics.visitors.thisMonth.toLocaleString(),
-      change: `+${sampleAnalytics.visitors.trend}%`,
-      icon: ArrowUpRight,
-      description: "This month",
-    },
-  ];
+  const inquiryChartData = useMemo(() => {
+    const seven = analyticsRows.slice(0, 7).reverse();
+    return seven.map((r) => ({
+      name: new Date(r.date).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+      }),
+      inquiries: r.inquiries_this_month ?? 0,
+    }));
+  }, [analyticsRows]);
+
+  const visitorChangeStr = useMemo(() => {
+    const t = latestAnalytics?.visitor_trend;
+    if (t === undefined || t === null) return "—";
+    return `${t >= 0 ? "+" : ""}${t}%`;
+  }, [latestAnalytics]);
+
+  const statCards = useMemo(() => {
+    const completed = stats?.completed_projects ?? 0;
+    const happy = stats?.happy_clients ?? 0;
+    const perspective = stats?.perspective_clients ?? 0;
+    const visitorsMonth = latestAnalytics?.visitors_this_month ?? 0;
+    return [
+      {
+        title: "Completed Projects",
+        value: completed.toLocaleString(),
+        change: "Business stats",
+        icon: CheckCircle,
+        description: "From settings",
+      },
+      {
+        title: "Happy Clients",
+        value: happy.toLocaleString(),
+        change: "Business stats",
+        icon: Users,
+        description: "From settings",
+      },
+      {
+        title: "Perspective Clients",
+        value: perspective.toLocaleString(),
+        change: "Business stats",
+        icon: Eye,
+        description: "From settings",
+      },
+      {
+        title: "Website Visitors",
+        value: visitorsMonth.toLocaleString(),
+        change: visitorChangeStr,
+        icon: ArrowUpRight,
+        description: "This month (analytics)",
+      },
+    ];
+  }, [stats, latestAnalytics, visitorChangeStr]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "unread":
+      case "UNREAD":
         return "destructive";
-      case "responded":
+      case "RESPONDED":
         return "default";
-      case "resolved":
+      case "RESOLVED":
         return "secondary";
       default:
         return "outline";
     }
   };
 
+  if (loading || !stats) {
+    return <Loading type="page" />;
+  }
+
   return (
     <div className="space-y-6 fade-in">
-      {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
@@ -131,9 +188,8 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
+        {statCards.map((stat) => (
           <StatCard
             key={stat.title}
             title={stat.title}
@@ -146,56 +202,60 @@ export function Dashboard() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-12">
-        {/* Overview */}
         <Card className="lg:col-span-8 overflow-hidden">
           <CardHeader>
             <CardTitle>Overview</CardTitle>
             <CardDescription>
-              Monthly inquiry volume (last 7 months)
+              Inquiry volume from recent analytics snapshots
             </CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={inquiryTrendData}>
-                <defs>
-                  <linearGradient
-                    id="inquiriesFill"
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop
-                      offset="5%"
-                      stopColor="hsl(var(--primary))"
-                      stopOpacity={0.35}
-                    />
-                    <stop
-                      offset="95%"
-                      stopColor="hsl(var(--primary))"
-                      stopOpacity={0.02}
-                    />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Area
-                  type="monotone"
-                  dataKey="inquiries"
-                  stroke="hsl(var(--primary))"
-                  fill="url(#inquiriesFill)"
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {inquiryChartData.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-12 text-center">
+                No analytics snapshots yet. Data will appear after analytics
+                records exist.
+              </p>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={inquiryChartData}>
+                  <defs>
+                    <linearGradient
+                      id="inquiriesFill"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop
+                        offset="5%"
+                        stopColor="hsl(var(--primary))"
+                        stopOpacity={0.35}
+                      />
+                      <stop
+                        offset="95%"
+                        stopColor="hsl(var(--primary))"
+                        stopOpacity={0.02}
+                      />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Area
+                    type="monotone"
+                    dataKey="inquiries"
+                    stroke="hsl(var(--primary))"
+                    fill="url(#inquiriesFill)"
+                    strokeWidth={2}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
-        {/* Right rail */}
         <div className="lg:col-span-4 space-y-6">
-          {/* Quick actions */}
           <Card>
             <CardHeader>
               <CardTitle>Quick actions</CardTitle>
@@ -220,10 +280,9 @@ export function Dashboard() {
                 <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
               </Link>
 
-              <button
-                type="button"
-                onClick={() => handleQuickAction("Upload media")}
-                className="text-left flex items-center justify-between rounded-xl border bg-background/60 px-4 py-3 hover:bg-accent/50 transition-colors"
+              <Link
+                to="/media"
+                className="flex items-center justify-between rounded-xl border bg-background/60 px-4 py-3 hover:bg-accent/50 transition-colors"
               >
                 <div className="flex items-center gap-3">
                   <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -237,12 +296,11 @@ export function Dashboard() {
                   </div>
                 </div>
                 <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
-              </button>
+              </Link>
 
-              <button
-                type="button"
-                onClick={() => handleQuickAction("Add testimonial")}
-                className="text-left flex items-center justify-between rounded-xl border bg-background/60 px-4 py-3 hover:bg-accent/50 transition-colors"
+              <Link
+                to="/testimonials"
+                className="flex items-center justify-between rounded-xl border bg-background/60 px-4 py-3 hover:bg-accent/50 transition-colors"
               >
                 <div className="flex items-center gap-3">
                   <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -256,11 +314,10 @@ export function Dashboard() {
                   </div>
                 </div>
                 <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
-              </button>
+              </Link>
             </CardContent>
           </Card>
 
-          {/* At a glance */}
           <Card>
             <CardHeader>
               <CardTitle>At a glance</CardTitle>
@@ -270,10 +327,10 @@ export function Dashboard() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <Eye className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Media Views</span>
+                  <span className="text-sm">Media Views (snapshot)</span>
                 </div>
                 <span className="font-semibold">
-                  {sampleAnalytics.media.totalViews.toLocaleString()}
+                  {(latestAnalytics?.media_total_views ?? 0).toLocaleString()}
                 </span>
               </div>
               <div className="flex items-center justify-between">
@@ -281,16 +338,16 @@ export function Dashboard() {
                   <MessageSquare className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm">Unread Inquiries</span>
                 </div>
-                <span className="font-semibold">
-                  {sampleInquiries.filter((i) => i.status === "unread").length}
-                </span>
+                <span className="font-semibold">{unreadTotal}</span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <Star className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Pending Reviews</span>
+                  <span className="text-sm">Pending testimonials</span>
                 </div>
-                <span className="font-semibold">3</span>
+                <span className="font-semibold">
+                  {pendingTestimonialsTotal}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
@@ -298,7 +355,7 @@ export function Dashboard() {
                   <span className="text-sm">Today's Visitors</span>
                 </div>
                 <span className="font-semibold">
-                  {sampleAnalytics.visitors.today}
+                  {(latestAnalytics?.visitors_today ?? 0).toLocaleString()}
                 </span>
               </div>
             </CardContent>
@@ -306,44 +363,58 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Recent Inquiries */}
       <Card>
-        <CardHeader>
-          <CardTitle>Recent Inquiries</CardTitle>
-          <CardDescription>
-            Latest customer inquiries and their status
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle>Recent Inquiries</CardTitle>
+            <CardDescription>
+              Latest customer inquiries and their status
+            </CardDescription>
+          </div>
+          <Link to="/inquiries">
+            <span className="text-sm text-primary hover:underline">
+              View all
+            </span>
+          </Link>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Subject</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {recentInquiries.map((inquiry) => (
-                <TableRow
-                  key={inquiry.id}
-                  className="cursor-pointer hover:bg-muted/50"
-                >
-                  <TableCell className="font-medium">{inquiry.name}</TableCell>
-                  <TableCell>{inquiry.email}</TableCell>
-                  <TableCell>{inquiry.subject}</TableCell>
-                  <TableCell>{formatDate(inquiry.date)}</TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusColor(inquiry.status)}>
-                      {inquiry.status}
-                    </Badge>
-                  </TableCell>
+          {recentInquiries.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">
+              No inquiries yet.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {recentInquiries.map((inquiry) => (
+                  <TableRow
+                    key={inquiry.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                  >
+                    <TableCell className="font-medium">
+                      {inquiry.name}
+                    </TableCell>
+                    <TableCell>{inquiry.email}</TableCell>
+                    <TableCell>{inquiry.subject}</TableCell>
+                    <TableCell>{formatDate(inquiry.inquiry_date)}</TableCell>
+                    <TableCell>
+                      <Badge variant={getStatusColor(inquiry.status)}>
+                        {inquiry.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>
