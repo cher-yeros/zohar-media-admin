@@ -49,7 +49,7 @@ export function Analytics() {
     { name: "Tablet", value: 20, color: "hsl(var(--accent))" },
   ];
 
-  const topPerformingMedia = sampleMedia.slice(0, 5).map((item, index) => ({
+  const topPerformingMedia = sampleMedia.slice(0, 5).map((item) => ({
     ...item,
     views: Math.floor(Math.random() * 1000) + 500,
     engagementRate: Math.floor(Math.random() * 30) + 60,

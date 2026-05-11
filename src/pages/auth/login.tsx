@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { ApolloError, useMutation } from "@apollo/client";
+import { useMutation } from "@apollo/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +24,7 @@ import {
   clearError,
 } from "@/redux/slices/authSlice";
 import { LOGIN_USER } from "@/lib/graphql/mutations";
+import { config } from "@/lib/config";
 import { User, UserRole } from "@/lib/types/api";
 
 function normalizeAuthUser(u: {
@@ -60,7 +61,7 @@ export function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useAppDispatch();
-  const { currentUser, token } = useAppSelector((state) => state.auth);
+  const { currentUser } = useAppSelector((state) => state.auth);
 
   const from =
     (location.state as { from?: { pathname: string } })?.from?.pathname || "/";
@@ -95,16 +96,28 @@ export function Login() {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       if (result.data?.loginUser?.success) {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-        const { user, token } = result.data.loginUser;
+        const { user, token } = result.data.loginUser as {
+          user: Parameters<typeof normalizeAuthUser>[0];
+          token: string;
+        };
+        const normalizedUser = normalizeAuthUser(user);
+
+        // Only allow admin logins into the admin app
+        if (normalizedUser.role !== UserRole.ADMIN) {
+          dispatch(loginError());
+          toast({
+            title: "Access denied",
+            description: "This account does not have admin access.",
+            variant: "destructive",
+          });
+          return;
+        }
 
         // Save to localStorage
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-        localStorage.setItem("auth-token", token);
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-        localStorage.setItem("auth-user", JSON.stringify(user));
+        localStorage.setItem(config.tokenKey, token);
+        localStorage.setItem(config.userKey, JSON.stringify(normalizedUser));
 
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-assignment
-        dispatch(loginFinished({ user, token }));
+        dispatch(loginFinished({ user: normalizedUser, token }));
 
         toast({
           title: "Welcome back!",
@@ -112,12 +125,26 @@ export function Login() {
         });
         navigate(from, { replace: true });
       } else {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        const message =
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          (result.data?.loginUser?.message as string | undefined) ||
+          "Invalid email or password.";
         dispatch(loginError());
+        toast({
+          title: "Sign in failed",
+          description: message,
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Login error:", error);
       dispatch(loginError());
+      toast({
+        title: "Sign in failed",
+        description:
+          error instanceof Error ? error.message : "Unexpected login error.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -131,12 +158,13 @@ export function Login() {
   const isLoading = mutationLoading;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+      <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,hsl(var(--primary)/0.18),transparent_55%),radial-gradient(ellipse_at_bottom,hsl(var(--ring)/0.10),transparent_50%)]" />
+      <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
-            <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
-              <Mail className="h-6 w-6 text-primary-foreground" />
+            <div className="w-12 h-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shadow-sm">
+              <Lock className="h-6 w-6" />
             </div>
           </div>
           <CardTitle className="text-2xl text-center">Welcome back</CardTitle>
@@ -208,7 +236,7 @@ export function Login() {
                 <input
                   id="remember"
                   type="checkbox"
-                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  className="h-4 w-4 rounded border-input text-primary focus:ring-primary"
                 />
                 <Label
                   htmlFor="remember"

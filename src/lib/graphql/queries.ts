@@ -125,7 +125,6 @@ export const GET_PORTFOLIO_ITEMS = gql`
         project_url
         testimonial
         createdAt
-        updated_at
         category {
           id
           name
@@ -169,7 +168,7 @@ export const GET_PORTFOLIO_CATEGORIES = gql`
       description
       color
       createdAt
-      updated_at
+
       portfolio_items {
         id
         title

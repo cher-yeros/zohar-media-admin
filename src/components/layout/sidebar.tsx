@@ -6,28 +6,15 @@ import {
   Image,
   Star,
   BarChart3,
-  Moon,
   Sun,
   Users,
   FolderOpen,
   Tag,
   Settings,
-  User,
-  LogOut,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/components/theme-provider";
-import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { logoutUser } from "@/redux/slices/authSlice";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { useAppSelector } from "@/redux/hooks";
 
 const navigation = [
   {
@@ -80,7 +67,6 @@ const navigation = [
 export function Sidebar() {
   const location = useLocation();
   const { theme, setTheme } = useTheme();
-  const dispatch = useAppDispatch();
   const { currentUser } = useAppSelector((state) => state.auth);
 
   const displayName =
@@ -89,56 +75,72 @@ export function Sidebar() {
       .join(" ")
       .trim() ||
     currentUser?.email ||
-    "User";
-
-  const avatarInitial = (
-    currentUser?.first_name?.charAt(0) ||
-    currentUser?.email?.charAt(0) ||
-    "?"
-  ).toUpperCase();
-
-  const handleLogout = () => {
-    dispatch(logoutUser());
-  };
+    "Admin";
 
   return (
-    <div className="flex h-full w-64 flex-col bg-card border-r">
+    <aside className="flex h-full w-72 shrink-0 flex-col border-r bg-card/60 backdrop-blur supports-[backdrop-filter]:bg-card/50">
       {/* Logo */}
-      <div className="flex h-16 items-center justify-center border-b px-6">
-        <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-          Zohar Media
-        </h1>
+      <div className="flex h-16 items-center justify-between border-b px-5">
+        <div className="min-w-0">
+          <h1 className="truncate text-lg font-semibold tracking-tight">
+            Zohar Admin
+          </h1>
+          <p className="truncate text-xs text-muted-foreground">
+            Zohar Media dashboard
+          </p>
+        </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-2 p-4">
+      <nav className="flex-1 space-y-1 p-3">
         {navigation.map((item) => {
-          const isActive = location.pathname === item.href;
+          const isActive =
+            item.href === "/"
+              ? location.pathname === "/"
+              : location.pathname.startsWith(item.href);
           return (
             <Link
               key={item.name}
               to={item.href}
               className={cn(
-                "flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 hover:bg-accent hover:text-accent-foreground",
+                "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-accent/60 hover:text-accent-foreground",
                 isActive
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground",
               )}
             >
-              <item.icon className="h-5 w-5" />
+              <item.icon
+                className={cn(
+                  "h-5 w-5",
+                  isActive
+                    ? "text-primary-foreground"
+                    : "text-muted-foreground",
+                )}
+              />
               <span>{item.name}</span>
             </Link>
           );
         })}
       </nav>
 
-      {/* Theme toggle */}
-      <div className="border-t p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Sun className="h-4 w-4" />
-            <span className="text-sm font-medium">Theme</span>
-            <Moon className="h-4 w-4" />
+      {/* Footer */}
+      <div className="border-t p-4 space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
+            {(displayName.charAt(0) || "A").toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">{displayName}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {currentUser?.email || "Signed in"}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between rounded-xl border bg-background/60 px-3 py-2">
+          <div className="flex items-center gap-2 text-sm">
+            <Sun className="h-4 w-4 text-muted-foreground" />
+            <span className="font-medium">Dark mode</span>
           </div>
           <Switch
             checked={theme === "dark"}
@@ -146,83 +148,6 @@ export function Sidebar() {
           />
         </div>
       </div>
-
-      {/* User info */}
-      <div className="border-t p-4">
-        {currentUser ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                className="w-full justify-start p-0 h-auto"
-              >
-                <div className="flex items-center space-x-3 w-full">
-                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    {currentUser.avatar_url ? (
-                      <img
-                        src={currentUser.avatar_url}
-                        alt={displayName}
-                        className="h-8 w-8 rounded-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-sm font-medium text-primary">
-                        {avatarInitial}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0 text-left">
-                    <p className="text-sm font-medium truncate">
-                      {displayName}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {currentUser.email}
-                    </p>
-                  </div>
-                </div>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end" forceMount>
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">
-                    {displayName}
-                  </p>
-                  <p className="text-xs leading-none text-muted-foreground">
-                    {currentUser.email}
-                  </p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link to="/profile" className="cursor-pointer">
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={handleLogout}
-                className="cursor-pointer"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          <div className="flex items-center space-x-3">
-            <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-              <User className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">Guest User</p>
-              <p className="text-xs text-muted-foreground truncate">
-                Not signed in
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+    </aside>
   );
 }

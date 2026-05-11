@@ -1,6 +1,7 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LucideIcon } from "lucide-react";
+import { LucideIcon, TrendingDown, TrendingUp } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface StatCardProps {
   title: string;
@@ -12,6 +13,8 @@ interface StatCardProps {
 
 export const StatCard = React.memo(
   ({ title, value, change, icon: Icon, description }: StatCardProps) => {
+    const isDown = change.trim().startsWith("-");
+    const TrendIcon = isDown ? TrendingDown : TrendingUp;
     return (
       <Card className="card-hover">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -19,15 +22,23 @@ export const StatCard = React.memo(
           <Icon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{value}</div>
+          <div className="text-2xl font-bold tracking-tight">{value}</div>
           <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-            <span className="flex items-center text-green-600">{change}</span>
+            <span
+              className={cn(
+                "flex items-center gap-1",
+                isDown ? "text-destructive" : "text-emerald-600",
+              )}
+            >
+              <TrendIcon className="h-3 w-3" />
+              {change}
+            </span>
             <span>{description}</span>
           </div>
         </CardContent>
       </Card>
     );
-  }
+  },
 );
 
 StatCard.displayName = "StatCard";

@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -6,11 +7,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Loading } from "@/components/ui/loading";
 import {
   Select,
   SelectContent,
@@ -19,23 +18,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import {
-  Settings as SettingsIcon,
-  CheckCircle,
-  Users,
-  Eye,
-  DollarSign,
-  TrendingUp,
-  Save,
-  RefreshCw,
-  BarChart3,
-  Target,
-  Award,
-  Calendar,
-} from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { sampleSettingsStats, SettingsStats } from "@/data/sample-data";
-import { Loading } from "@/components/ui/loading";
 import { useToast } from "@/hooks/use-toast";
+import {
+  BarChart3,
+  Calendar,
+  CheckCircle,
+  DollarSign,
+  Eye,
+  RefreshCw,
+  Save,
+  Settings as SettingsIcon,
+  Target,
+  Users,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 
 export function Settings() {
   const [isLoading, setIsLoading] = useState(true);
@@ -91,11 +89,11 @@ export function Settings() {
   return (
     <div className="space-y-6 fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
           <p className="text-muted-foreground">
-            Manage your business statistics and settings.
+            Manage business stats, preferences, and public visibility.
           </p>
         </div>
         <div className="flex space-x-2">
@@ -111,7 +109,7 @@ export function Settings() {
               </Button>
             </>
           ) : (
-            <Button onClick={() => setIsEditing(true)}>
+            <Button className="shadow-sm" onClick={() => setIsEditing(true)}>
               <SettingsIcon className="h-4 w-4 mr-2" />
               Edit Settings
             </Button>
@@ -140,7 +138,7 @@ export function Settings() {
                       completedProjects: parseInt(e.target.value) || 0,
                     })
                   }
-                  className="text-3xl font-bold border-none p-0 h-auto"
+                  className="text-3xl font-bold border-none p-0 h-auto shadow-none focus-visible:ring-0"
                 />
               ) : (
                 stats.completedProjects.toLocaleString()
@@ -170,7 +168,7 @@ export function Settings() {
                       happyClients: parseInt(e.target.value) || 0,
                     })
                   }
-                  className="text-3xl font-bold border-none p-0 h-auto"
+                  className="text-3xl font-bold border-none p-0 h-auto shadow-none focus-visible:ring-0"
                 />
               ) : (
                 stats.happyClients.toLocaleString()
@@ -202,7 +200,7 @@ export function Settings() {
                       perspectiveClients: parseInt(e.target.value) || 0,
                     })
                   }
-                  className="text-3xl font-bold border-none p-0 h-auto"
+                  className="text-3xl font-bold border-none p-0 h-auto shadow-none focus-visible:ring-0"
                 />
               ) : (
                 stats.perspectiveClients.toLocaleString()
@@ -277,7 +275,7 @@ export function Settings() {
                 $
                 {stats.totalRevenue && stats.happyClients > 0
                   ? Math.round(
-                      stats.totalRevenue / stats.happyClients
+                      stats.totalRevenue / stats.happyClients,
                     ).toLocaleString()
                   : "0"}
               </span>
@@ -311,7 +309,7 @@ export function Settings() {
               <Badge variant="outline" className="text-sm">
                 {stats.perspectiveClients > 0
                   ? Math.round(
-                      (stats.happyClients / stats.perspectiveClients) * 100
+                      (stats.happyClients / stats.perspectiveClients) * 100,
                     ) + "%"
                   : "0%"}
               </Badge>
@@ -380,7 +378,7 @@ export function Settings() {
               <Label htmlFor="website">Website</Label>
               <Input
                 id="website"
-                defaultValue="https://zoharmedia.com"
+                defaultValue="https://zoharmedia.net"
                 disabled={!isEditing}
               />
             </div>
@@ -388,7 +386,7 @@ export function Settings() {
               <Label htmlFor="email">Contact Email</Label>
               <Input
                 id="email"
-                defaultValue="contact@zoharmedia.com"
+                defaultValue="contact@zoharmedia.net"
                 disabled={!isEditing}
               />
             </div>

@@ -98,22 +98,24 @@ export function Portfolio() {
   });
 
   // Apollo Client queries
-  const { data: portfolioData, loading: portfolioLoading } = useQuery(
-    GET_PORTFOLIO_ITEMS,
-    {
-      variables: {
-        category_id: filterCategory === "all" ? null : filterCategory,
-        status: filterStatus === "all" ? null : filterStatus.toUpperCase(),
-        limit: 100,
-        offset: 0,
-      },
-    }
-  );
-
-  console.log(portfolioData);
+  const {
+    data: portfolioData,
+    loading: portfolioLoading,
+    refetch: refetchPortfolioItems,
+  } = useQuery(GET_PORTFOLIO_ITEMS, {
+    variables: {
+      category_id: filterCategory === "all" ? null : filterCategory,
+      status:
+        filterStatus === "all"
+          ? null
+          : filterStatus.replace("-", "_").toUpperCase(),
+      limit: 100,
+      offset: 0,
+    },
+  });
 
   const { data: categoriesData, loading: categoriesLoading } = useQuery(
-    GET_PORTFOLIO_CATEGORIES
+    GET_PORTFOLIO_CATEGORIES,
   );
   const { data: teamData, loading: teamLoading } = useQuery(GET_TEAM_MEMBERS);
 
@@ -124,7 +126,8 @@ export function Portfolio() {
 
   const portfolioItems = portfolioData?.portfolioItems?.items || [];
   const categories = categoriesData?.portfolioCategories || [];
-  const teamMembers = teamData?.teamMembers || [];
+  // Form is concise; team members are not used here.
+  void teamData;
   const isLoading = portfolioLoading || categoriesLoading || teamLoading;
 
   const handleAddItem = async () => {
@@ -139,13 +142,7 @@ export function Portfolio() {
         status: formData.status,
         featured: formData.featured,
         project_url: formData.projectUrl || undefined,
-        testimonial: formData.testimonial || undefined,
         tags: formData.tags,
-        technologies: formData.technologies,
-        team_members: formData.teamMembers.map((memberId) => ({
-          team_member_id: memberId,
-          role: undefined,
-        })),
       };
 
       const result = await createPortfolioItem({
@@ -163,7 +160,7 @@ export function Portfolio() {
       } else {
         throw new Error(
           result.data?.createPortfolioItem?.message ||
-            "Failed to create portfolio item"
+            "Failed to create portfolio item",
         );
       }
     } catch (error) {
@@ -188,11 +185,11 @@ export function Portfolio() {
       client: item.client_name || "",
       status: item.status,
       tags: item.tags.map((tag) => tag.tag_name),
-      teamMembers: item.team_members.map((tm) => tm.team_member.id),
+      teamMembers: [],
       featured: item.featured,
-      technologies: item.technologies.map((tech) => tech.technology_name),
+      technologies: [],
       projectUrl: item.project_url || "",
-      testimonial: item.testimonial || "",
+      testimonial: "",
       projectDate: item.project_date.split("T")[0],
       thumbnailUrl: item.thumbnail_url || "",
     });
@@ -213,13 +210,7 @@ export function Portfolio() {
         status: formData.status,
         featured: formData.featured,
         project_url: formData.projectUrl || undefined,
-        testimonial: formData.testimonial || undefined,
         tags: formData.tags,
-        technologies: formData.technologies,
-        team_members: formData.teamMembers.map((memberId) => ({
-          team_member_id: memberId,
-          role: undefined,
-        })),
       };
 
       const result = await updatePortfolioItem({
@@ -241,7 +232,7 @@ export function Portfolio() {
       } else {
         throw new Error(
           result.data?.updatePortfolioItem?.message ||
-            "Failed to update portfolio item"
+            "Failed to update portfolio item",
         );
       }
     } catch (error) {
@@ -272,7 +263,7 @@ export function Portfolio() {
       } else {
         throw new Error(
           result.data?.deletePortfolioItem?.message ||
-            "Failed to delete portfolio item"
+            "Failed to delete portfolio item",
         );
       }
     } catch (error) {
@@ -319,10 +310,6 @@ export function Portfolio() {
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
-  const getCategoryById = (categoryId: string) => {
-    return categories.find((cat: PortfolioCategory) => cat.id === categoryId);
-  };
-
   const getStatusIcon = (status: PortfolioItemStatus) => {
     switch (status) {
       case PortfolioItemStatus.COMPLETED:
@@ -356,8 +343,8 @@ export function Portfolio() {
   return (
     <div className="space-y-6 fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">
             Portfolio Management
           </h1>
@@ -367,7 +354,7 @@ export function Portfolio() {
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="shadow-sm">
               <Plus className="h-4 w-4 mr-2" />
               Add Portfolio Item
             </Button>
@@ -383,7 +370,6 @@ export function Portfolio() {
               formData={formData}
               setFormData={setFormData}
               categories={categories}
-              teamMembers={teamMembers}
               onSubmit={handleAddItem}
               onCancel={() => setIsAddDialogOpen(false)}
             />
@@ -393,7 +379,7 @@ export function Portfolio() {
 
       {/* Stats Cards */}
       <div className="grid gap-6 md:grid-cols-4">
-        <Card>
+        <Card className="card-hover">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Total Projects
@@ -406,14 +392,14 @@ export function Portfolio() {
               {
                 portfolioItems.filter(
                   (p: PortfolioItem) =>
-                    p.status === PortfolioItemStatus.COMPLETED
+                    p.status === PortfolioItemStatus.COMPLETED,
                 ).length
               }{" "}
               completed
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="card-hover">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Featured Projects
@@ -424,11 +410,10 @@ export function Portfolio() {
             <div className="text-2xl font-bold">
               {portfolioItems.filter((p: PortfolioItem) => p.featured).length}
             </div>
-            {portfolioItems.filter((p: PortfolioItem) => p.featured).length}
             <p className="text-xs text-muted-foreground">Highlighted work</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="card-hover">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Categories</CardTitle>
             <Tag className="h-4 w-4 text-muted-foreground" />
@@ -438,7 +423,7 @@ export function Portfolio() {
             <p className="text-xs text-muted-foreground">Different types</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="card-hover">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">In Progress</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
@@ -447,7 +432,8 @@ export function Portfolio() {
             <div className="text-2xl font-bold">
               {
                 portfolioItems.filter(
-                  (p) => p.status === PortfolioItemStatus.IN_PROGRESS
+                  (p: PortfolioItem) =>
+                    p.status === PortfolioItemStatus.IN_PROGRESS,
                 ).length
               }
             </div>
@@ -465,7 +451,7 @@ export function Portfolio() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4 mb-6">
+          <div className="flex flex-col gap-3 mb-6 md:flex-row md:items-center md:gap-4">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -478,12 +464,12 @@ export function Portfolio() {
               </div>
             </div>
             <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-full md:w-56">
                 <SelectValue placeholder="Filter by category" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                {categories.map((category) => (
+                {categories.map((category: PortfolioCategory) => (
                   <SelectItem key={category.id} value={category.id}>
                     {category.name}
                   </SelectItem>
@@ -491,7 +477,7 @@ export function Portfolio() {
               </SelectContent>
             </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-full md:w-56">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
@@ -516,10 +502,10 @@ export function Portfolio() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredItems.map((item) => {
+              {filteredItems.map((item: PortfolioItem) => {
                 const category = item.category;
                 const assignedTeamMembers = item.team_members.map(
-                  (tm) => tm.team_member
+                  (tm: any) => tm.team_member,
                 );
 
                 return (
@@ -582,7 +568,7 @@ export function Portfolio() {
                     </TableCell>
                     <TableCell>
                       <div className="flex -space-x-2">
-                        {assignedTeamMembers.slice(0, 3).map((member) => (
+                        {assignedTeamMembers.slice(0, 3).map((member: any) => (
                           <div
                             key={member.id}
                             className="h-6 w-6 rounded-full bg-primary/10 border-2 border-background flex items-center justify-center text-xs font-medium"
@@ -597,7 +583,7 @@ export function Portfolio() {
                             ) : (
                               member.name
                                 .split(" ")
-                                .map((n) => n[0])
+                                .map((n: string) => n[0])
                                 .join("")
                             )}
                           </div>
@@ -659,7 +645,6 @@ export function Portfolio() {
             formData={formData}
             setFormData={setFormData}
             categories={categories}
-            teamMembers={teamMembers}
             onSubmit={handleUpdateItem}
             onCancel={() => {
               setIsEditDialogOpen(false);
@@ -677,47 +662,45 @@ function PortfolioItemForm({
   formData,
   setFormData,
   categories,
-  teamMembers,
   onSubmit,
   onCancel,
 }: {
   formData: PortfolioItemFormData;
   setFormData: (data: PortfolioItemFormData) => void;
   categories: PortfolioCategory[];
-  teamMembers: any[];
   onSubmit: () => void;
   onCancel: () => void;
 }) {
+  const [projectUrlError, setProjectUrlError] = useState<string | null>(null);
+
+  const extractYouTubeId = (url: string): string | null => {
+    const value = url.trim();
+    if (!value) return null;
+
+    // youtu.be/<id>
+    const short = value.match(/youtu\.be\/([a-zA-Z0-9_-]{6,})/);
+    if (short?.[1]) return short[1];
+
+    // youtube.com/watch?v=<id>
+    const watch = value.match(/[?&]v=([a-zA-Z0-9_-]{6,})/);
+    if (watch?.[1]) return watch[1];
+
+    // youtube.com/shorts/<id>
+    const shorts = value.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{6,})/);
+    if (shorts?.[1]) return shorts[1];
+
+    return null;
+  };
+
+  const youtubeThumbnailFromId = (id: string) =>
+    `https://img.youtube.com/vi/${id}/maxresdefault.jpg`;
+
   const handleTagsChange = (value: string) => {
     const tags = value
       .split(",")
       .map((t) => t.trim())
       .filter((t) => t);
     setFormData({ ...formData, tags });
-  };
-
-  const handleTechnologiesChange = (value: string) => {
-    const technologies = value
-      .split(",")
-      .map((t) => t.trim())
-      .filter((t) => t);
-    setFormData({ ...formData, technologies });
-  };
-
-  const handleTeamMembersChange = (memberId: string, checked: boolean) => {
-    if (checked) {
-      setFormData({
-        ...formData,
-        teamMembers: [...formData.teamMembers, memberId],
-      });
-    } else {
-      setFormData({
-        ...formData,
-        teamMembers: formData.teamMembers.filter(
-          (id: string) => id !== memberId
-        ),
-      });
-    }
   };
 
   return (
@@ -758,14 +741,12 @@ function PortfolioItemForm({
           />
         </div>
         <div>
-          <Label htmlFor="thumbnailUrl">Thumbnail URL</Label>
+          <Label htmlFor="tags">Tags (comma-separated)</Label>
           <Input
-            id="thumbnailUrl"
-            value={formData.thumbnailUrl}
-            onChange={(e) =>
-              setFormData({ ...formData, thumbnailUrl: e.target.value })
-            }
-            placeholder="https://example.com/image.jpg"
+            id="tags"
+            value={formData.tags.join(", ")}
+            onChange={(e) => handleTagsChange(e.target.value)}
+            placeholder="e.g., wedding, outdoor, corporate"
           />
         </div>
       </div>
@@ -795,7 +776,7 @@ function PortfolioItemForm({
               <SelectValue placeholder="Select category" />
             </SelectTrigger>
             <SelectContent>
-              {categories.map((category) => (
+              {categories.map((category: PortfolioCategory) => (
                 <SelectItem key={category.id} value={category.id}>
                   {category.name}
                 </SelectItem>
@@ -808,7 +789,7 @@ function PortfolioItemForm({
           <Select
             value={formData.status}
             onValueChange={(value) =>
-              setFormData({ ...formData, status: value })
+              setFormData({ ...formData, status: value as PortfolioItemStatus })
             }
           >
             <SelectTrigger>
@@ -827,71 +808,52 @@ function PortfolioItemForm({
         </div>
       </div>
 
-      <div>
-        <Label htmlFor="tags">Tags (comma-separated)</Label>
-        <Input
-          id="tags"
-          value={formData.tags.join(", ")}
-          onChange={(e) => handleTagsChange(e.target.value)}
-          placeholder="e.g., wedding, outdoor, corporate"
-        />
-      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="projectUrl">Project URL (YouTube)</Label>
+          <Input
+            id="projectUrl"
+            value={formData.projectUrl}
+            onChange={(e) => {
+              const url = e.target.value;
+              const id = extractYouTubeId(url);
 
-      <div>
-        <Label htmlFor="technologies">Technologies (comma-separated)</Label>
-        <Input
-          id="technologies"
-          value={formData.technologies.join(", ")}
-          onChange={(e) => handleTechnologiesChange(e.target.value)}
-          placeholder="e.g., Canon EOS R5, Adobe Lightroom, Sony FX6"
-        />
-      </div>
+              setFormData({
+                ...formData,
+                projectUrl: url,
+                thumbnailUrl: id
+                  ? youtubeThumbnailFromId(id)
+                  : formData.thumbnailUrl,
+              });
 
-      <div>
-        <Label>Team Members</Label>
-        <div className="grid grid-cols-2 gap-2 mt-2">
-          {teamMembers.map((member) => (
-            <div key={member.id} className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id={`member-${member.id}`}
-                checked={formData.teamMembers.includes(member.id)}
-                onChange={(e) =>
-                  handleTeamMembersChange(member.id, e.target.checked)
-                }
-                className="rounded"
-              />
-              <label htmlFor={`member-${member.id}`} className="text-sm">
-                {member.name}
-              </label>
-            </div>
-          ))}
+              if (!url.trim()) {
+                setProjectUrlError(null);
+              } else if (!id) {
+                setProjectUrlError(
+                  "Please enter a valid YouTube URL (with a video id).",
+                );
+              } else {
+                setProjectUrlError(null);
+              }
+            }}
+            placeholder="https://www.youtube.com/watch?v=VIDEO_ID"
+          />
+          {projectUrlError ? (
+            <p className="text-sm text-destructive mt-1">{projectUrlError}</p>
+          ) : null}
         </div>
-      </div>
 
-      <div>
-        <Label htmlFor="projectUrl">Project URL</Label>
-        <Input
-          id="projectUrl"
-          value={formData.projectUrl}
-          onChange={(e) =>
-            setFormData({ ...formData, projectUrl: e.target.value })
-          }
-          placeholder="https://example.com/project"
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="testimonial">Client Testimonial</Label>
-        <Textarea
-          id="testimonial"
-          value={formData.testimonial}
-          onChange={(e) =>
-            setFormData({ ...formData, testimonial: e.target.value })
-          }
-          rows={2}
-          placeholder="Client feedback about the project..."
-        />
+        <div>
+          <Label htmlFor="thumbnailUrl">Thumbnail URL</Label>
+          <Input
+            id="thumbnailUrl"
+            value={formData.thumbnailUrl}
+            onChange={(e) =>
+              setFormData({ ...formData, thumbnailUrl: e.target.value })
+            }
+            placeholder="Auto-generated from YouTube URL"
+          />
+        </div>
       </div>
 
       <div className="flex items-center space-x-2">
@@ -913,7 +875,21 @@ function PortfolioItemForm({
         <Button variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button onClick={onSubmit}>
+        <Button
+          onClick={() => {
+            const url = formData.projectUrl?.trim() ?? "";
+            if (url) {
+              const id = extractYouTubeId(url);
+              if (!id) {
+                setProjectUrlError(
+                  "Please enter a valid YouTube URL (with a video id).",
+                );
+                return;
+              }
+            }
+            onSubmit();
+          }}
+        >
           {formData.title ? "Update" : "Add"} Item
         </Button>
       </div>

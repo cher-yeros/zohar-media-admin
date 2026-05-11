@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -6,17 +7,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -32,9 +23,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Filter, Download, Eye, CheckCircle } from "lucide-react";
-import { sampleInquiries, Inquiry } from "@/data/sample-data";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Inquiry, sampleInquiries } from "@/data/sample-data";
 import { formatDateTime } from "@/lib/utils";
+import { CheckCircle, Download, Eye, Search } from "lucide-react";
+import { useState } from "react";
 
 export function Inquiries() {
   const [inquiries, setInquiries] = useState(sampleInquiries);
@@ -60,8 +60,8 @@ export function Inquiries() {
       prev.map((inquiry) =>
         inquiry.id === inquiryId
           ? { ...inquiry, status: "resolved" as const }
-          : inquiry
-      )
+          : inquiry,
+      ),
     );
   };
 
@@ -294,7 +294,7 @@ export function Inquiries() {
                                   </label>
                                   <Badge
                                     variant={getStatusColor(
-                                      selectedInquiry.status
+                                      selectedInquiry.status,
                                     )}
                                   >
                                     {selectedInquiry.status}

@@ -1,4 +1,6 @@
 import { store } from "@/redux/store";
+import { config } from "@/lib/config";
+import { logoutUser } from "@/redux/slices/authSlice";
 import {
   ApolloClient,
   ApolloProvider,
@@ -7,6 +9,7 @@ import {
   from,
 } from "@apollo/client";
 import { setContext } from "@apollo/client/link/context";
+import { onError } from "@apollo/client/link/error";
 import { useMemo, ReactNode } from "react";
 
 interface MyApolloProviderProps {
@@ -15,7 +18,27 @@ interface MyApolloProviderProps {
 
 export default function MyApolloProvider({ children }: MyApolloProviderProps) {
   const apolloClient = useMemo(() => {
-    const authLink = setContext((_, { headers }) => {
+    const errorLink = onError(({ graphQLErrors, networkError }) => {
+      const unauthenticated =
+        graphQLErrors?.some((e) => e.extensions?.code === "UNAUTHENTICATED") ??
+        false;
+
+      if (unauthenticated) {
+        localStorage.removeItem(config.tokenKey);
+        localStorage.removeItem(config.userKey);
+        store.dispatch(logoutUser());
+      }
+
+      // Optional: in dev, you might want to log network errors
+      if (import.meta.env.DEV && networkError) {
+        // eslint-disable-next-line no-console
+        console.warn("GraphQL network error:", networkError);
+      }
+    });
+
+    const authLink = setContext((_, prevContext: { headers?: unknown }) => {
+      const headers =
+        (prevContext.headers as Record<string, string> | undefined) ?? {};
       const token = store.getState().auth.token;
       return {
         headers: {
@@ -26,12 +49,12 @@ export default function MyApolloProvider({ children }: MyApolloProviderProps) {
     });
 
     const httpLink = createHttpLink({
-      uri: import.meta.env.VITE_GRAPHQL_URL ?? "http://localhost:4000/graphql",
+      uri: String(config.graphqlEndpoint),
       credentials: "include",
     });
 
     return new ApolloClient({
-      link: from([authLink, httpLink]),
+      link: from([errorLink, authLink, httpLink]),
       cache: new InMemoryCache(),
 
       defaultOptions: {

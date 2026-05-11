@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery, useMutation } from "@apollo/client";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -7,16 +7,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -27,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Loading } from "@/components/ui/loading";
 import {
   Select,
   SelectContent,
@@ -36,34 +26,40 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Plus,
-  Edit,
-  Trash2,
-  Mail,
-  Phone,
-  Linkedin,
-  Twitter,
-  Instagram,
-  Users,
-  UserPlus,
-  Search,
-  Filter,
-} from "lucide-react";
-import { formatDate } from "@/lib/utils";
-import { Loading } from "@/components/ui/loading";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { GET_TEAM_MEMBERS } from "@/lib/graphql/queries";
 import {
   CREATE_TEAM_MEMBER,
-  UPDATE_TEAM_MEMBER,
   DELETE_TEAM_MEMBER,
+  UPDATE_TEAM_MEMBER,
 } from "@/lib/graphql/mutations";
+import { GET_TEAM_MEMBERS } from "@/lib/graphql/queries";
 import {
+  CreateTeamMemberInput,
   TeamMember,
   TeamMemberFormData,
-  CreateTeamMemberInput,
   UpdateTeamMemberInput,
 } from "@/lib/types/team";
+import { formatDate } from "@/lib/utils";
+import { useMutation, useQuery } from "@apollo/client";
+import {
+  Edit,
+  Filter,
+  Mail,
+  Phone,
+  Search,
+  Trash2,
+  UserPlus,
+  Users,
+} from "lucide-react";
+import { useState } from "react";
 
 export function Team() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -118,9 +114,9 @@ export function Team() {
         name: formData.name,
         role: formData.role,
         email: formData.email,
-        phone: formData.phone || null,
-        avatar_url: formData.avatarUrl || null,
-        bio: formData.bio || null,
+        phone: formData.phone || undefined,
+        avatar_url: formData.avatarUrl || undefined,
+        bio: formData.bio || undefined,
         join_date: formData.joinDate,
         status: formData.status,
         skills: formData.skills,
@@ -163,13 +159,13 @@ export function Team() {
 
     // Extract social links
     const linkedin =
-      member.social_links.find((link) => link.platform === "linkedin")?.url ||
+      member.social_links.find((link: any) => link.platform === "linkedin")?.url ||
       "";
     const twitter =
-      member.social_links.find((link) => link.platform === "twitter")?.url ||
+      member.social_links.find((link: any) => link.platform === "twitter")?.url ||
       "";
     const instagram =
-      member.social_links.find((link) => link.platform === "instagram")?.url ||
+      member.social_links.find((link: any) => link.platform === "instagram")?.url ||
       "";
 
     setFormData({
@@ -205,9 +201,9 @@ export function Team() {
         name: formData.name,
         role: formData.role,
         email: formData.email,
-        phone: formData.phone || null,
-        avatar_url: formData.avatarUrl || null,
-        bio: formData.bio || null,
+        phone: formData.phone || undefined,
+        avatar_url: formData.avatarUrl || undefined,
+        bio: formData.bio || undefined,
         status: formData.status,
         skills: formData.skills,
         social_links: socialLinks,
@@ -296,7 +292,7 @@ export function Team() {
     });
   };
 
-  const filteredMembers = teamMembers.filter((member) => {
+  const filteredMembers = teamMembers.filter((member: TeamMember) => {
     const matchesSearch =
       member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       member.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -306,7 +302,7 @@ export function Team() {
   });
 
   const uniqueRoles = Array.from(
-    new Set(teamMembers.map((member) => member.role))
+    new Set(teamMembers.map((member: TeamMember) => member.role))
   );
 
   if (isLoading) {
@@ -359,7 +355,7 @@ export function Team() {
           <CardContent>
             <div className="text-2xl font-bold">{teamMembers.length}</div>
             <p className="text-xs text-muted-foreground">
-              {teamMembers.filter((m) => m.status === "active").length} active
+              {teamMembers.filter((m: TeamMember) => m.status === "active").length} active
             </p>
           </CardContent>
         </Card>
@@ -372,7 +368,7 @@ export function Team() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {teamMembers.filter((m) => m.status === "active").length}
+              {teamMembers.filter((m: TeamMember) => m.status === "active").length}
             </div>
             <p className="text-xs text-muted-foreground">Currently working</p>
           </CardContent>
@@ -415,8 +411,8 @@ export function Team() {
               <SelectContent>
                 <SelectItem value="all">All Roles</SelectItem>
                 {uniqueRoles.map((role) => (
-                  <SelectItem key={role} value={role}>
-                    {role}
+                  <SelectItem key={String(role)} value={String(role)}>
+                    {String(role)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -435,7 +431,7 @@ export function Team() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredMembers.map((member) => (
+              {filteredMembers.map((member: TeamMember) => (
                 <TableRow key={member.id}>
                   <TableCell>
                     <div className="flex items-center space-x-3">
@@ -450,7 +446,7 @@ export function Team() {
                           <span className="text-sm font-medium text-primary">
                             {member.name
                               .split(" ")
-                              .map((n) => n[0])
+                              .map((n: string) => n[0])
                               .join("")}
                           </span>
                         )}
@@ -460,7 +456,7 @@ export function Team() {
                         <div className="text-sm text-muted-foreground">
                           {member.skills
                             .slice(0, 2)
-                            .map((skill) => skill.skill_name)
+                            .map((skill: any) => skill.skill_name)
                             .join(", ")}
                           {member.skills.length > 2 && "..."}
                         </div>

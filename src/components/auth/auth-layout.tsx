@@ -1,7 +1,6 @@
 import { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/auth-context";
 import { LogOut, User } from "lucide-react";
 import {
   DropdownMenu,
@@ -11,13 +10,23 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { logoutUser } from "@/redux/slices/authSlice";
+import { config } from "@/lib/config";
 
 interface AuthLayoutProps {
   children: ReactNode;
 }
 
 export function AuthLayout({ children }: AuthLayoutProps) {
-  const { user, logout } = useAuth();
+  const dispatch = useAppDispatch();
+  const { currentUser } = useAppSelector((state) => state.auth);
+
+  const logout = () => {
+    localStorage.removeItem(config.tokenKey);
+    localStorage.removeItem(config.userKey);
+    dispatch(logoutUser());
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -34,7 +43,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
           </div>
 
           <div className="flex items-center space-x-4">
-            {user ? (
+            {currentUser ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -43,7 +52,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
                   >
                     <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                       <span className="text-sm font-medium">
-                        {user.first_name.charAt(0)}
+                        {currentUser.first_name.charAt(0)}
                       </span>
                     </div>
                   </Button>
@@ -52,10 +61,10 @@ export function AuthLayout({ children }: AuthLayoutProps) {
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none">
-                        {user.first_name} {user.last_name}
+                        {currentUser.first_name} {currentUser.last_name}
                       </p>
                       <p className="text-xs leading-none text-muted-foreground">
-                        {user.email}
+                        {currentUser.email}
                       </p>
                     </div>
                   </DropdownMenuLabel>

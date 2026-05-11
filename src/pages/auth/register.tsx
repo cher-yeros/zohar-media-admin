@@ -34,6 +34,22 @@ import { createUserSchema, CreateUserFormData } from "@/lib/schemas/validation";
 import { CREATE_USER } from "@/lib/graphql/mutations";
 import { useMutation } from "@apollo/client";
 
+type RegisterFormData = CreateUserFormData & {
+  confirmPassword: string;
+};
+
+const registerSchema = createUserSchema.extend({
+  confirmPassword: createUserSchema.shape.password,
+}).superRefine((data, ctx) => {
+  if (data.password !== data.confirmPassword) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["confirmPassword"],
+      message: "Passwords do not match",
+    });
+  }
+});
+
 export function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -47,9 +63,8 @@ export function Register() {
     handleSubmit,
     formState: { errors },
     setValue,
-    watch,
-  } = useForm<CreateUserFormData>({
-    resolver: zodResolver(createUserSchema),
+  } = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
     defaultValues: {
       email: "",
       password: "",
@@ -57,12 +72,13 @@ export function Register() {
       last_name: "",
       role: "EDITOR",
       avatar_url: "",
+      confirmPassword: "",
     },
   });
 
   const [createUser] = useMutation(CREATE_USER);
 
-  const onSubmit = async (data: CreateUserFormData) => {
+  const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
     setError(null);
 
@@ -98,7 +114,7 @@ export function Register() {
     }
   };
 
-  const password = watch("password");
+  // confirmPassword input temporarily disabled in UI (see below)
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-8">
@@ -241,10 +257,7 @@ export function Register() {
                   type={showConfirmPassword ? "text" : "password"}
                   placeholder="Confirm your password"
                   className="pl-10 pr-10"
-                  {...register("confirmPassword", {
-                    validate: (value) =>
-                      value === password || "Passwords do not match",
-                  })}
+                  {...register("confirmPassword")}
                 />
                 <Button
                   type="button"

@@ -52,7 +52,7 @@ import {
   Tag,
   Trash2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export function PortfolioCategories() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -82,13 +82,16 @@ export function PortfolioCategories() {
   const [deletePortfolioCategory] = useMutation(DELETE_PORTFOLIO_CATEGORY);
 
   const categories = categoriesData?.portfolioCategories || [];
+  const portfolioItems = categories.flatMap(
+    (category: PortfolioCategory) => category?.portfolio_items ?? [],
+  );
   const isLoading = categoriesLoading;
 
   const handleAddCategory = async () => {
     try {
       const input: CreatePortfolioCategoryInput = {
         name: formData.name,
-        description: formData.description || null,
+        description: formData.description || undefined,
         color: formData.color,
       };
 
@@ -107,7 +110,7 @@ export function PortfolioCategories() {
       } else {
         throw new Error(
           result.data?.createPortfolioCategory?.message ||
-            "Failed to create portfolio category"
+            "Failed to create portfolio category",
         );
       }
     } catch (error) {
@@ -140,7 +143,7 @@ export function PortfolioCategories() {
       const input: UpdatePortfolioCategoryInput = {
         id: editingCategory.id,
         name: formData.name,
-        description: formData.description || null,
+        description: formData.description || undefined,
         color: formData.color,
       };
 
@@ -160,7 +163,7 @@ export function PortfolioCategories() {
       } else {
         throw new Error(
           result.data?.updatePortfolioCategory?.message ||
-            "Failed to update portfolio category"
+            "Failed to update portfolio category",
         );
       }
     } catch (error) {
@@ -191,7 +194,7 @@ export function PortfolioCategories() {
       } else {
         throw new Error(
           result.data?.deletePortfolioCategory?.message ||
-            "Failed to delete portfolio category"
+            "Failed to delete portfolio category",
         );
       }
     } catch (error) {
@@ -215,7 +218,7 @@ export function PortfolioCategories() {
     });
   };
 
-  const filteredCategories = categories.filter((category) => {
+  const filteredCategories = categories.filter((category: PortfolioCategory) => {
     const matchesSearch =
       category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       category.description?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -223,7 +226,7 @@ export function PortfolioCategories() {
   });
 
   const getProjectCount = (categoryId: string) => {
-    const category = categories.find((cat) => cat.id === categoryId);
+    const category = categories.find((cat: PortfolioCategory) => cat.id === categoryId);
     return category?.portfolio_items?.length || 0;
   };
 
@@ -306,7 +309,9 @@ export function PortfolioCategories() {
             <div className="text-2xl font-bold">
               {categories.length > 0
                 ? Math.max(
-                    ...categories.map((c) => c.portfolio_items?.length || 0)
+                    ...categories.map(
+                      (c: PortfolioCategory) => c.portfolio_items?.length || 0,
+                    ),
                   )
                 : 0}
             </div>
@@ -319,7 +324,7 @@ export function PortfolioCategories() {
 
       {/* Categories Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredCategories.map((category) => {
+        {filteredCategories.map((category: PortfolioCategory) => {
           const projectCount = getProjectCount(category.id);
           return (
             <Card key={category.id} className="relative">
@@ -423,7 +428,7 @@ export function PortfolioCategories() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredCategories.map((category) => {
+              {filteredCategories.map((category: PortfolioCategory) => {
                 const projectCount = getProjectCount(category.id);
                 return (
                   <TableRow key={category.id}>

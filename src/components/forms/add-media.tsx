@@ -1,8 +1,5 @@
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +9,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -19,15 +18,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Youtube, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { addMediaFormSchema, AddMediaFormData } from "@/lib/schemas/validation";
 import { CREATE_MEDIA_ITEM } from "@/lib/graphql/mutations";
+import { AddMediaFormData, addMediaFormSchema } from "@/lib/schemas/validation";
 import { useMutation } from "@apollo/client";
-import { uploadFile } from "@/lib/api/file-upload";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Plus, X, Youtube } from "lucide-react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
 
 interface AddMediaProps {
   onMediaAdded?: (media: any) => void;
